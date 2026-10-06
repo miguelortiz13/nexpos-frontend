@@ -319,6 +319,83 @@
     white-space: pre-line;
 }
 
+/* DIAN Resolution Info */
+.ticket-resolution-info {
+    text-align: center;
+    font-size: 9.5px;
+    line-height: 1.25;
+    color: #333333;
+    margin: 4px 0 6px 0;
+    padding: 3px 0;
+    border-bottom: 1px dotted #888888;
+}
+
+.thermal-paper-sheet.width-58mm .ticket-resolution-info {
+    font-size: 8.5px;
+}
+
+.doc-type-badge {
+    font-weight: 800;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
+}
+
+.thermal-paper-sheet.width-58mm .doc-type-badge {
+    font-size: 9px;
+}
+
+/* Tax Sub-rows */
+.t-row.sub-tax {
+    font-size: 10.5px;
+    color: #444444;
+}
+
+.thermal-paper-sheet.width-58mm .t-row.sub-tax {
+    font-size: 9.5px;
+}
+
+/* DIAN QR Code */
+.ticket-qr-container {
+    text-align: center;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed #666666;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.ticket-qr-container svg {
+    margin: 0 auto;
+    display: block;
+}
+
+.ticket-qr-caption {
+    font-size: 9px;
+    color: #444444;
+    text-align: center;
+    max-width: 90%;
+}
+
+/* DIAN CUDE Hash */
+.ticket-cude-container {
+    margin-top: 6px;
+    font-size: 8px;
+    line-height: 1.15;
+    text-align: center;
+    word-break: break-all;
+    color: #333333;
+    padding: 0 4px;
+}
+
+.ticket-cude-label {
+    font-weight: 800;
+    font-size: 8.5px;
+    margin-bottom: 1px;
+}
+
 /* Modal Actions Footer */
 .thermal-modal-footer {
     display: flex;

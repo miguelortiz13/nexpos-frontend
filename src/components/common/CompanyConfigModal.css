@@ -1,0 +1,413 @@
+/* ===================================================================
+   NexPOS - Company Fiscal Configuration Modal (DIAN & Factus)
+   =================================================================== */
+
+.company-config-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 1.5rem;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+.company-config-modal {
+    background: #ffffff;
+    border-radius: var(--radius-xl, 16px);
+    width: 100%;
+    max-width: 840px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color, #e2e8f0);
+    overflow: hidden;
+}
+
+.company-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.75rem;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.company-config-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.company-config-icon-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(5, 150, 105, 0.1);
+    color: var(--primary, #059669);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+
+.company-config-title h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gray-900, #0f172a);
+    margin: 0;
+}
+
+.company-config-title p {
+    font-size: 0.82rem;
+    color: var(--gray-500, #64748b);
+    margin: 2px 0 0 0;
+}
+
+.btn-close-config {
+    background: transparent;
+    border: none;
+    color: var(--gray-400, #94a3b8);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-close-config:hover {
+    color: var(--gray-700, #334155);
+    background: var(--gray-100, #f1f5f9);
+}
+
+/* Tabs */
+.company-config-tabs {
+    display: flex;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    padding: 0 1.75rem;
+    gap: 0.5rem;
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1.15rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--gray-500, #64748b);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--primary, #059669);
+}
+
+.tab-btn.active {
+    color: var(--primary, #059669);
+    border-bottom-color: var(--primary, #059669);
+    background: #ffffff;
+}
+
+/* Form Body */
+.company-config-body {
+    padding: 1.75rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.fiscal-section-card {
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.section-intro-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: #eff6ff;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+    line-height: 1.45;
+}
+
+.banner-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.fiscal-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.1rem;
+}
+
+.fiscal-fields-grid.three-col {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 640px) {
+    .fiscal-fields-grid,
+    .fiscal-fields-grid.three-col {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fiscal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.fiscal-field.full-span {
+    grid-column: 1 / -1;
+}
+
+.fiscal-field label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.fiscal-field input,
+.fiscal-field select,
+.fiscal-field textarea {
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #0f172a;
+    background: #f8fafc;
+    transition: all 0.2s;
+}
+
+.fiscal-field input:focus,
+.fiscal-field select:focus,
+.fiscal-field textarea:focus {
+    outline: none;
+    border-color: var(--primary, #059669);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.fiscal-field .field-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+/* Electronic Invoicing Activation Switch */
+.switch-control-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+}
+
+.switch-label-group h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #166534;
+}
+
+.switch-label-group p {
+    margin: 3px 0 0 0;
+    font-size: 0.8rem;
+    color: #15803d;
+}
+
+.toggle-switch-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.toggle-switch-wrapper input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: .3s;
+    border-radius: 26px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .toggle-slider {
+    background-color: #059669;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+/* Factus Connection Tester Card */
+.connection-test-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.connection-test-info h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.connection-test-info p {
+    margin: 3px 0 0 0;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.btn-test-connection {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-test-connection:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.test-result-box {
+    width: 100%;
+    padding: 0.85rem 1.1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.test-result-box.success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.test-result-box.error {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+/* Modal Footer */
+.company-config-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 1.15rem 1.75rem;
+    background: #f8fafc;
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    gap: 0.75rem;
+}
+
+.btn-cancel-config {
+    padding: 0.65rem 1.25rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel-config:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.btn-save-config {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.5rem;
+    background: var(--primary, #059669);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
+    transition: all 0.2s;
+}
+
+.btn-save-config:hover:not(:disabled) {
+    background: var(--primary-hover, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(5, 150, 105, 0.35);
+}
+
+.btn-save-config:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

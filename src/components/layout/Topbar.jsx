@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { FaUserCircle, FaSignOutAlt, FaCashRegister, FaCircle } from 'react-icons/fa';
+import { FaUserCircle, FaSignOutAlt, FaCashRegister, FaCircle, FaFileInvoiceDollar } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import CompanyConfigModal from '../common/CompanyConfigModal';
 import './Topbar.css';
 
 const Topbar = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [showFiscalModal, setShowFiscalModal] = useState(false);
     const { user, isAuthenticated, isAdmin, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -52,6 +54,17 @@ const Topbar = () => {
                     </button>
                 )}
 
+                {isAdmin && (
+                    <button
+                        className="btn-quick-config"
+                        onClick={() => setShowFiscalModal(true)}
+                        title="Configuración Fiscal y Facturación Electrónica DIAN"
+                    >
+                        <FaFileInvoiceDollar />
+                        <span>Fiscal DIAN</span>
+                    </button>
+                )}
+
                 <div className="live-clock">
                     <span className="clock-time">{formattedTime}</span>
                     <span className="clock-date">{formattedDate}</span>
@@ -80,6 +93,13 @@ const Topbar = () => {
                     )}
                 </div>
             </div>
+
+            {isAdmin && (
+                <CompanyConfigModal
+                    isOpen={showFiscalModal}
+                    onClose={() => setShowFiscalModal(false)}
+                />
+            )}
         </header>
     );
 };

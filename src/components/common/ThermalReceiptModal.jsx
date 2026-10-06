@@ -1,13 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import JsBarcode from 'jsbarcode';
+import { QRCodeSVG } from 'qrcode.react';
 import {
     FaPrint,
     FaTimes,
     FaCog,
-    FaCashRegister
+    FaCashRegister,
+    FaQrcode,
+    FaShieldAlt
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import { playBarcodeBeep } from '../../utils/audio';
+import companyConfigService from '../../api/companyConfigService';
 import './ThermalReceiptModal.css';
 
 const DEFAULT_CONFIG = {
@@ -16,7 +20,14 @@ const DEFAULT_CONFIG = {
     address: 'Av. Roosevelt # 34-50, Cali - Colombia',
     phone: 'Tel: (602) 889-1234 • WhatsApp: 315 000 0000',
     footerMessage: '¡Gracias por su compra!\nConserve este tiquete para garantías y cambios.\nSoftware POS: NexPOS Cloud v2.0',
-    autoDrawer: true
+    autoDrawer: true,
+    dianResolutionNumber: '18764000001',
+    dianPrefix: 'POS',
+    dianRangeFrom: 1000,
+    dianRangeTo: 50000,
+    dianStartDate: '2024-01-01',
+    dianEndDate: '2026-01-01',
+    facturacionActiva: true
 };
 
 const formatCOP = (val) => {
@@ -57,6 +68,34 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
 
     const [drawerKicked, setDrawerKicked] = useState(false);
 
+    // Cargar configuración fiscal oficial de la empresa desde el backend
+    useEffect(() => {
+        if (isOpen) {
+            companyConfigService.getConfig()
+                .then(companyData => {
+                    if (companyData) {
+                        setConfig(prev => ({
+                            ...prev,
+                            businessName: companyData.tradeName || companyData.businessName || prev.businessName,
+                            nit: `NIT: ${companyData.nit} • ${companyData.taxRegime || 'Régimen Común'}`,
+                            address: `${companyData.address || ''}, ${companyData.city || 'Cali'} - ${companyData.department || 'Valle'}`,
+                            phone: `Tel: ${companyData.phone || ''}${companyData.email ? ` • ${companyData.email}` : ''}`,
+                            dianResolutionNumber: companyData.dianResolutionNumber || prev.dianResolutionNumber,
+                            dianPrefix: companyData.dianPrefix || prev.dianPrefix,
+                            dianRangeFrom: companyData.dianRangeFrom || prev.dianRangeFrom,
+                            dianRangeTo: companyData.dianRangeTo || prev.dianRangeTo,
+                            dianStartDate: companyData.dianStartDate ? String(companyData.dianStartDate).split('T')[0] : prev.dianStartDate,
+                            dianEndDate: companyData.dianEndDate ? String(companyData.dianEndDate).split('T')[0] : prev.dianEndDate,
+                            facturacionActiva: companyData.facturacionActiva ?? prev.facturacionActiva
+                        }));
+                    }
+                })
+                .catch(() => {
+                    // Fallback a localStorage / DEFAULT_CONFIG
+                });
+        }
+    }, [isOpen]);
+
     // Guardar cambios de ancho de papel
     const handleSetPaperWidth = (width) => {
         setPaperWidth(width);
@@ -70,18 +109,67 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
         localStorage.setItem('nexpos_thermal_config', JSON.stringify(updated));
     };
 
+    // Datos calculados del tiquete y factura electrónica
+    const invoice = sale?.invoice || null;
+    const invoiceNum = invoice?.invoiceNumber || sale?.invoiceNumber || `POS-${String(sale?.id || 1).padStart(6, '0')}`;
+    const items = sale?.items || [];
+    const totalAmount = Number(sale?.totalAmount) || 0;
+    const paidAmount = Number(sale?.amountPaid) || totalAmount;
+    const changeAmount = Number(sale?.changeAmount) || 0;
+    const qrData = invoice?.qrData;
+    const cude = invoice?.cude;
+
+    // Desglose de impuestos (IVA 19%, IVA 5%, Exento 0%)
+    const taxBreakdown = useMemo(() => {
+        let base19 = 0;
+        let iva19 = 0;
+        let base5 = 0;
+        let iva5 = 0;
+        let base0 = 0;
+
+        (sale?.items || []).forEach(it => {
+            const rate = it.ivaRate != null ? Number(it.ivaRate) : 0.19;
+            const itemTotal = Number(it.subTotal || (it.quantity * it.unitPrice)) || 0;
+            const base = it.baseAmount != null ? Number(it.baseAmount) : (rate > 0 ? itemTotal / (1 + rate) : itemTotal);
+            const iva = it.ivaAmount != null ? Number(it.ivaAmount) : (itemTotal - base);
+
+            if (rate >= 0.18) {
+                base19 += base;
+                iva19 += iva;
+            } else if (rate > 0.01 && rate <= 0.06) {
+                base5 += base;
+                iva5 += iva;
+            } else {
+                base0 += base;
+            }
+        });
+
+        const totalIva = iva19 + iva5;
+        const totalBase = base19 + base5 + base0;
+
+        return {
+            base19,
+            iva19,
+            base5,
+            iva5,
+            base0,
+            totalIva,
+            totalBase: totalBase > 0 ? totalBase : (totalAmount - totalIva)
+        };
+    }, [sale?.items, totalAmount]);
+
     // Renderizar código de barras del ticket con JsBarcode
     useEffect(() => {
         if (isOpen && sale && barcodeRef.current) {
             try {
-                const code = sale.invoiceNumber || `FAC-${String(sale.id).padStart(6, '0')}`;
+                const code = invoiceNum;
                 JsBarcode(barcodeRef.current, code, {
                     format: "CODE128",
                     lineColor: "#000000",
-                    width: paperWidth === '80mm' ? 1.7 : 1.3,
-                    height: paperWidth === '80mm' ? 40 : 30,
+                    width: paperWidth === '80mm' ? 1.6 : 1.2,
+                    height: paperWidth === '80mm' ? 36 : 28,
                     displayValue: true,
-                    fontSize: 10,
+                    fontSize: 9,
                     margin: 4,
                     background: "#ffffff"
                 });
@@ -89,7 +177,7 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                 console.error("Error al renderizar código de barras en ticket:", err);
             }
         }
-    }, [isOpen, sale, paperWidth]);
+    }, [isOpen, sale, invoiceNum, paperWidth]);
 
     // Auto-impresión si viene habilitada
     useEffect(() => {
@@ -123,20 +211,13 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
         window.print();
     };
 
-    // Datos calculados del tiquete
-    const items = sale.items || [];
-    const invoiceNum = sale.invoiceNumber || `FAC-${String(sale.id).padStart(6, '0')}`;
-    const totalAmount = Number(sale.totalAmount) || 0;
-    const paidAmount = Number(sale.amountPaid) || totalAmount;
-    const changeAmount = Number(sale.changeAmount) || 0;
-
     return (
         <div className="thermal-modal-overlay" onClick={onClose}>
             <div className="thermal-modal-container" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="thermal-modal-header">
                     <h3>
-                        <FaPrint className="thermal-header-icon" /> Tiquete de Venta Térmico POS
+                        <FaPrint className="thermal-header-icon" /> Tiquete POS & Documento Electrónico DIAN
                     </h3>
                     <button className="btn-close-thermal" onClick={onClose} title="Cerrar ventana">
                         <FaTimes />
@@ -223,7 +304,7 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                         id="thermal-receipt-printable"
                         className={`thermal-paper-sheet width-${paperWidth}`}
                     >
-                        {/* Encabezado */}
+                        {/* Encabezado del Comercio */}
                         <div className="ticket-brand-header">
                             <span className="ticket-store-name">{config.businessName}</span>
                             <div className="ticket-meta-info">
@@ -233,24 +314,32 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                             </div>
                         </div>
 
+                        {/* Bloque Autorización DIAN (Resolución 000165 de 2023) */}
+                        <div className="ticket-resolution-info">
+                            <div>Resolución DIAN No. {config.dianResolutionNumber}</div>
+                            <div>Vigencia: {config.dianStartDate} al {config.dianEndDate}</div>
+                            <div>Prefijo {config.dianPrefix} del {config.dianRangeFrom} al {config.dianRangeTo}</div>
+                            <div className="doc-type-badge">DOCUMENTO EQUIVALENTE ELECTRÓNICO POS</div>
+                        </div>
+
                         <div className="ticket-divider-line"></div>
 
                         {/* Metadatos de la Venta */}
                         <div className="ticket-meta-info">
                             <div className="t-row bold">
-                                <span>TIQUETE POS:</span>
+                                <span>No. COMPROBANTE:</span>
                                 <span>{invoiceNum}</span>
                             </div>
                             <div className="t-row">
-                                <span>Fecha:</span>
+                                <span>Fecha y Hora:</span>
                                 <span>{formatDateTime(sale.saleDate)}</span>
                             </div>
                             <div className="t-row">
                                 <span>Cajero:</span>
-                                <span>{sale.cashierUsername || 'Cajero 1'}</span>
+                                <span>{sale.cashierUsername || 'Cajero POS'}</span>
                             </div>
                             <div className="t-row">
-                                <span>Cliente:</span>
+                                <span>Adquiriente:</span>
                                 <span>{sale.customerName || 'Consumidor Final'}</span>
                             </div>
                             <div className="t-row">
@@ -274,38 +363,69 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                                     <span>{formatCOP(totalAmount)}</span>
                                 </div>
                             ) : (
-                                items.map((it, idx) => (
-                                    <div key={idx} className="ticket-item-row">
-                                        <div className="item-name-line">{it.productName}</div>
-                                        <div className="item-calc-line">
-                                            <span>{it.quantity} x {formatCOP(it.unitPrice)}</span>
-                                            <strong>{formatCOP(it.subTotal || (it.quantity * it.unitPrice))}</strong>
+                                items.map((it, idx) => {
+                                    const rate = it.ivaRate != null ? Number(it.ivaRate) : 0.19;
+                                    const rateLabel = rate === 0 ? '0%' : `${Math.round(rate * 100)}%`;
+                                    return (
+                                        <div key={idx} className="ticket-item-row">
+                                            <div className="item-name-line">
+                                                {it.productName} <span style={{ fontSize: '10px', opacity: 0.75 }}>({rateLabel})</span>
+                                            </div>
+                                            <div className="item-calc-line">
+                                                <span>{it.quantity} x {formatCOP(it.unitPrice)}</span>
+                                                <strong>{formatCOP(it.subTotal || (it.quantity * it.unitPrice))}</strong>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
 
                         <div className="ticket-divider-line"></div>
 
-                        {/* Totales y Medio de Pago */}
+                        {/* Totales y Desglose Tributario DIAN */}
                         <div className="ticket-totals-box">
                             <div className="t-row">
-                                <span>Subtotal:</span>
-                                <span>{formatCOP(totalAmount)}</span>
+                                <span>Subtotal Gravable:</span>
+                                <span>{formatCOP(taxBreakdown.totalBase)}</span>
                             </div>
+
+                            {taxBreakdown.base19 > 0 && (
+                                <div className="t-row sub-tax">
+                                    <span>• Base 19% (${formatCOP(taxBreakdown.base19)}):</span>
+                                    <span>{formatCOP(taxBreakdown.iva19)}</span>
+                                </div>
+                            )}
+
+                            {taxBreakdown.base5 > 0 && (
+                                <div className="t-row sub-tax">
+                                    <span>• Base 5% (${formatCOP(taxBreakdown.base5)}):</span>
+                                    <span>{formatCOP(taxBreakdown.iva5)}</span>
+                                </div>
+                            )}
+
+                            {taxBreakdown.base0 > 0 && (
+                                <div className="t-row sub-tax">
+                                    <span>• Exento / Excluido:</span>
+                                    <span>{formatCOP(taxBreakdown.base0)}</span>
+                                </div>
+                            )}
+
                             <div className="t-row">
-                                <span>IVA / Impuestos:</span>
-                                <span>$0 (Incluido)</span>
+                                <span>Total Impuesto (IVA):</span>
+                                <span>{formatCOP(taxBreakdown.totalIva)}</span>
                             </div>
+
                             <div className="t-row total-hero">
                                 <span>TOTAL A PAGAR:</span>
                                 <span>{formatCOP(totalAmount)}</span>
                             </div>
+
                             <div className="t-row">
                                 <span>Medio de Pago:</span>
                                 <strong>{sale.paymentMethod || 'EFECTIVO'}</strong>
                             </div>
+
                             {sale.paymentMethod === 'EFECTIVO' && (
                                 <>
                                     <div className="t-row">
@@ -319,6 +439,29 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                                 </>
                             )}
                         </div>
+
+                        {/* Código QR Oficial DIAN */}
+                        {qrData ? (
+                            <div className="ticket-qr-container">
+                                <QRCodeSVG
+                                    value={qrData}
+                                    size={paperWidth === '80mm' ? 116 : 92}
+                                    level="M"
+                                    includeMargin={false}
+                                />
+                                <div className="ticket-qr-caption">
+                                    Consulte su documento electrónico escaneando el código QR en el catálogo DIAN
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {/* CUDE Oficial DIAN */}
+                        {cude ? (
+                            <div className="ticket-cude-container">
+                                <div className="ticket-cude-label">CUDE (Código Único de Documento Electrónico):</div>
+                                <div className="ticket-cude-value">{cude}</div>
+                            </div>
+                        ) : null}
 
                         {/* Código de Barras del Tiquete */}
                         <div className="ticket-barcode-box">
@@ -336,6 +479,11 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                 <div className="thermal-modal-footer">
                     <div className="drawer-status-pill">
                         <span>Formato: <strong>{paperWidth}</strong></span>
+                        {invoice?.factusStatus && (
+                            <span style={{ marginLeft: '8px', color: '#059669', fontWeight: 600 }}>
+                                • DIAN: {invoice.factusStatus}
+                            </span>
+                        )}
                     </div>
 
                     <div className="footer-action-buttons">

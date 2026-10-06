@@ -57,7 +57,9 @@ const ProductosCRUD = () => {
     cantidad: 0,
     categoria: "",
     descripcion: "",
-    imagen: ""
+    imagen: "",
+    ivaRate: 0.19,
+    unitMeasure: "94"
   });
 
   const fetchProductos = async () => {
@@ -114,7 +116,7 @@ const ProductosCRUD = () => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === "precio" || name === "cantidad" ? Number(value) : value
+      [name]: name === "precio" || name === "cantidad" || name === "ivaRate" ? Number(value) : value
     });
   };
 
@@ -144,7 +146,9 @@ const ProductosCRUD = () => {
       cantidad: 0,
       categoria: "",
       descripcion: "",
-      imagen: ""
+      imagen: "",
+      ivaRate: 0.19,
+      unitMeasure: "94"
     });
     setStep('form');
   };
@@ -162,7 +166,9 @@ const ProductosCRUD = () => {
         cantidad: producto.cantidad,
         categoria: producto.categoria || "",
         descripcion: producto.descripcion || "",
-        imagen: producto.imagen || ""
+        imagen: producto.imagen || "",
+        ivaRate: producto.ivaRate != null ? Number(producto.ivaRate) : 0.19,
+        unitMeasure: producto.unitMeasure || "94"
       });
     } else {
       setStep('barcode');
@@ -175,7 +181,9 @@ const ProductosCRUD = () => {
         cantidad: 0,
         categoria: "",
         descripcion: "",
-        imagen: ""
+        imagen: "",
+        ivaRate: 0.19,
+        unitMeasure: "94"
       });
     }
   };
@@ -194,9 +202,15 @@ const ProductosCRUD = () => {
         ? `/api/productos/${currentProducto.id}`
         : "/api/productos";
 
+      const payload = {
+        ...formData,
+        ivaRate: Number(formData.ivaRate),
+        unitMeasure: formData.unitMeasure || "94"
+      };
+
       const response = isUpdating
-        ? await api.put(url, formData)
-        : await api.post(url, formData);
+        ? await api.put(url, payload)
+        : await api.post(url, payload);
 
       const result = response.data;
 
@@ -247,7 +261,9 @@ const ProductosCRUD = () => {
           cantidad: 0,
           categoria: "",
           descripcion: "",
-          imagen: ""
+          imagen: "",
+          ivaRate: 0.19,
+          unitMeasure: "94"
         });
         setStep('form');
         toast.success(`Nuevo código detectado: ${codigoBarras}`);
@@ -268,7 +284,9 @@ const ProductosCRUD = () => {
       cantidad: producto.cantidad,
       categoria: producto.categoria,
       descripcion: producto.descripcion,
-      imagen: producto.imagen
+      imagen: producto.imagen,
+      ivaRate: producto.ivaRate != null ? Number(producto.ivaRate) : 0.19,
+      unitMeasure: producto.unitMeasure || "94"
     });
     setStep('form');
   };
@@ -413,6 +431,35 @@ const ProductosCRUD = () => {
             />
           </div>
 
+          <div className="form-group-modal">
+            <label>Tarifa IVA (DIAN) *</label>
+            <select
+              name="ivaRate"
+              value={formData.ivaRate}
+              onChange={handleInputChange}
+            >
+              <option value={0.19}>19% - General (Gravado)</option>
+              <option value={0.05}>5% - Reducido (Canasta)</option>
+              <option value={0.00}>0% - Exento / Excluido</option>
+            </select>
+          </div>
+
+          <div className="form-group-modal">
+            <label>Unidad de Medida (DIAN) *</label>
+            <select
+              name="unitMeasure"
+              value={formData.unitMeasure}
+              onChange={handleInputChange}
+            >
+              <option value="94">94 - Unidad (und)</option>
+              <option value="KGM">KGM - Kilogramo (kg)</option>
+              <option value="LTR">LTR - Litro (l)</option>
+              <option value="GRM">GRM - Gramo (g)</option>
+              <option value="MTR">MTR - Metro (m)</option>
+              <option value="NIU">NIU - Unidades comerciales</option>
+            </select>
+          </div>
+
           <div className="form-group-modal full-width">
             <label>Descripción / Presentación</label>
             <textarea
@@ -553,6 +600,7 @@ const ProductosCRUD = () => {
                 <th>Nombre / Producto</th>
                 <th>Marca</th>
                 <th>Categoría</th>
+                <th className="text-center">IVA / Medida</th>
                 <th className="text-right">Precio Unitario</th>
                 <th className="text-center">Stock</th>
                 <th className="text-center">Estado</th>
@@ -577,6 +625,12 @@ const ProductosCRUD = () => {
                       <td className="brand-cell">{producto.marca || "Genérico"}</td>
                       <td>
                         <span className="category-chip">{producto.categoria || "General"}</span>
+                      </td>
+                      <td className="text-center">
+                        <span className="category-chip" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                          {producto.ivaRate != null ? (Number(producto.ivaRate) === 0 ? 'Exento 0%' : `${Math.round(Number(producto.ivaRate) * 100)}%`) : '19%'}
+                          <span style={{ opacity: 0.6, marginLeft: '4px' }}>({producto.unitMeasure || '94'})</span>
+                        </span>
                       </td>
                       <td className="text-right price-cell">
                         {formatCOP(producto.precio)}
@@ -620,7 +674,7 @@ const ProductosCRUD = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan="8" className="empty-table-cell">
+                  <td colSpan="9" className="empty-table-cell">
                     <FaBox size={32} />
                     <p>No se encontraron productos que coincidan con la búsqueda.</p>
                   </td>
