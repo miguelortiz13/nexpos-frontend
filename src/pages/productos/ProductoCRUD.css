@@ -329,7 +329,7 @@
   white-space: nowrap;
 }
 
-.btn-action-edit, .btn-action-delete, .btn-action-label {
+.btn-action-edit, .btn-action-delete, .btn-action-label, .btn-action-adjust, .btn-action-kardex {
   border: none;
   background: none;
   padding: 6px 8px;
@@ -337,6 +337,26 @@
   cursor: pointer;
   font-size: 0.9rem;
   transition: all var(--transition-fast);
+}
+
+.btn-action-adjust {
+  color: #059669;
+  margin-right: 4px;
+}
+
+.btn-action-adjust:hover {
+  background-color: #ecfdf5;
+  color: #047857;
+}
+
+.btn-action-kardex {
+  color: #6366f1;
+  margin-right: 4px;
+}
+
+.btn-action-kardex:hover {
+  background-color: #e0e7ff;
+  color: #4338ca;
 }
 
 .btn-action-label {
@@ -599,4 +619,103 @@
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* Stock View Tabs */
+.stock-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  background-color: var(--gray-100);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+
+.stock-tab-btn {
+  background: none;
+  border: none;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.stock-tab-btn:hover {
+  color: var(--gray-900);
+}
+
+.stock-tab-btn.active {
+  background-color: var(--surface-card);
+  color: var(--primary-dark);
+  box-shadow: var(--shadow-xs);
+}
+
+.stock-tab-btn.critical.active {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.selected-critical {
+  border-color: #f87171 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Profit Margin Preview Box in Form Modal */
+.profit-margin-preview-box {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profit-margin-preview-box .margin-tag {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #166534;
+}
+
+.profit-margin-preview-box .margin-val.positive {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #15803d;
+}
+
+.profit-margin-preview-box .margin-val.negative {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #b91c1c;
+}
+
+/* Price Stack in Table */
+.price-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.price-stack .sale-price {
+  font-size: 0.92rem;
+  color: var(--gray-900);
+}
+
+.price-stack .cost-sub {
+  font-size: 0.72rem;
+  color: var(--gray-500);
+}
+
+.min-stock-sub {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--gray-400);
+  margin-top: 2px;
 }

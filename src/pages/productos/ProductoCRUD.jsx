@@ -14,13 +14,17 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaTag,
-  FaRandom
+  FaRandom,
+  FaExchangeAlt,
+  FaHistory
 } from "react-icons/fa";
 import Modal from 'react-modal';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import BarcodeScanner from "../../components/common/BarcodeScanner";
 import BarcodeLabelModal from "../../components/common/BarcodeLabelModal";
+import StockAdjustModal from "../../components/common/StockAdjustModal";
+import KardexModal from "../../components/common/KardexModal";
 import api from "../../api/client";
 import "./ProductoCRUD.css";
 
@@ -45,6 +49,13 @@ const ProductosCRUD = () => {
   const [tempBarcode, setTempBarcode] = useState('');
   const [modalType, setModalType] = useState(null);
 
+  // Modales de Ajuste de Stock y Kardex
+  const [selectedProductForAdjust, setSelectedProductForAdjust] = useState(null);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [selectedProductForKardex, setSelectedProductForKardex] = useState(null);
+  const [showKardexModal, setShowKardexModal] = useState(false);
+  const [stockFilterMode, setStockFilterMode] = useState('ALL'); // 'ALL' | 'CRITICAL'
+
   // Modal para imprimir etiquetas
   const [selectedProductForLabel, setSelectedProductForLabel] = useState(null);
   const [showLabelModal, setShowLabelModal] = useState(false);
@@ -54,7 +65,9 @@ const ProductosCRUD = () => {
     nombre: "",
     marca: "",
     precio: 0,
+    costPrice: 0,
     cantidad: 0,
+    minStock: 5,
     categoria: "",
     descripcion: "",
     imagen: "",
@@ -88,12 +101,16 @@ const ProductosCRUD = () => {
   const totalValue = useMemo(() => {
     return productos.reduce((acc, p) => acc + (Number(p.precio) * (p.cantidad || 0)), 0);
   }, [productos]);
+  const totalCostInvestment = useMemo(() => {
+    return productos.reduce((acc, p) => acc + (Number(p.costPrice || 0) * (p.cantidad || 0)), 0);
+  }, [productos]);
   const lowStockCount = useMemo(() => {
-    return productos.filter(p => p.cantidad > 0 && p.cantidad <= 5).length;
+    return productos.filter(p => p.cantidad > 0 && p.cantidad <= (p.minStock != null ? p.minStock : 5)).length;
   }, [productos]);
   const outOfStockCount = useMemo(() => {
     return productos.filter(p => p.cantidad === 0).length;
   }, [productos]);
+  const criticalCount = lowStockCount + outOfStockCount;
 
   const categories = useMemo(() => {
     const cats = new Set(productos.map(p => p.categoria).filter(Boolean));
@@ -102,6 +119,10 @@ const ProductosCRUD = () => {
 
   const filteredProductos = useMemo(() => {
     return productos.filter(producto => {
+      if (stockFilterMode === 'CRITICAL') {
+        const isCrit = producto.cantidad <= (producto.minStock != null ? producto.minStock : 5);
+        if (!isCrit) return false;
+      }
       const matchesCategory = selectedCategory === "TODAS" || producto.categoria === selectedCategory;
       const matchesSearch = !searchTerm ||
         producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,15 +131,25 @@ const ProductosCRUD = () => {
         (producto.codigoBarras && producto.codigoBarras.includes(searchTerm));
       return matchesCategory && matchesSearch;
     });
-  }, [productos, searchTerm, selectedCategory]);
+  }, [productos, searchTerm, selectedCategory, stockFilterMode]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    const isNum = ['precio', 'costPrice', 'cantidad', 'minStock', 'ivaRate'].includes(name);
     setFormData({
       ...formData,
-      [name]: name === "precio" || name === "cantidad" || name === "ivaRate" ? Number(value) : value
+      [name]: isNum ? (value === '' ? 0 : Number(value)) : value
     });
   };
+
+  const calculatedMargin = useMemo(() => {
+    const price = Number(formData.precio) || 0;
+    const cost = Number(formData.costPrice) || 0;
+    if (price <= 0) return null;
+    const profit = price - cost;
+    const marginPct = ((profit / price) * 100).toFixed(1);
+    return { profit, marginPct };
+  }, [formData.precio, formData.costPrice]);
 
   const handleBarcodeSubmit = async () => {
     if (!tempBarcode) {
@@ -163,7 +194,9 @@ const ProductosCRUD = () => {
         nombre: producto.nombre,
         marca: producto.marca || "",
         precio: producto.precio,
+        costPrice: producto.costPrice != null ? Number(producto.costPrice) : 0,
         cantidad: producto.cantidad,
+        minStock: producto.minStock != null ? Number(producto.minStock) : 5,
         categoria: producto.categoria || "",
         descripcion: producto.descripcion || "",
         imagen: producto.imagen || "",
@@ -178,7 +211,9 @@ const ProductosCRUD = () => {
         nombre: "",
         marca: "",
         precio: 0,
+        costPrice: 0,
         cantidad: 0,
+        minStock: 5,
         categoria: "",
         descripcion: "",
         imagen: "",
@@ -204,6 +239,10 @@ const ProductosCRUD = () => {
 
       const payload = {
         ...formData,
+        precio: Number(formData.precio),
+        costPrice: Number(formData.costPrice || 0),
+        cantidad: Number(formData.cantidad),
+        minStock: Number(formData.minStock || 5),
         ivaRate: Number(formData.ivaRate),
         unitMeasure: formData.unitMeasure || "94"
       };
@@ -258,7 +297,9 @@ const ProductosCRUD = () => {
           nombre: "",
           marca: "",
           precio: 0,
+          costPrice: 0,
           cantidad: 0,
+          minStock: 5,
           categoria: "",
           descripcion: "",
           imagen: "",
@@ -281,7 +322,9 @@ const ProductosCRUD = () => {
       nombre: producto.nombre,
       marca: producto.marca,
       precio: producto.precio,
+      costPrice: producto.costPrice != null ? Number(producto.costPrice) : 0,
       cantidad: producto.cantidad,
+      minStock: producto.minStock != null ? Number(producto.minStock) : 5,
       categoria: producto.categoria,
       descripcion: producto.descripcion,
       imagen: producto.imagen,
@@ -407,6 +450,19 @@ const ProductosCRUD = () => {
           </div>
 
           <div className="form-group-modal">
+            <label>Costo de Compra ($ COP)</label>
+            <input
+              type="number"
+              name="costPrice"
+              value={formData.costPrice}
+              onChange={handleInputChange}
+              min="0"
+              step="50"
+              placeholder="0"
+            />
+          </div>
+
+          <div className="form-group-modal">
             <label>Precio de Venta ($ COP) *</label>
             <input
               type="number"
@@ -419,12 +475,33 @@ const ProductosCRUD = () => {
             />
           </div>
 
+          {calculatedMargin && (
+            <div className="profit-margin-preview-box full-width">
+              <span className="margin-tag">Margen de Ganancia Estimado:</span>
+              <strong className={Number(calculatedMargin.marginPct) >= 0 ? "margin-val positive" : "margin-val negative"}>
+                {calculatedMargin.marginPct}% ({formatCOP(calculatedMargin.profit)} ganancia / unidad)
+              </strong>
+            </div>
+          )}
+
           <div className="form-group-modal">
             <label>Stock Disponible *</label>
             <input
               type="number"
               name="cantidad"
               value={formData.cantidad}
+              onChange={handleInputChange}
+              min="0"
+              required
+            />
+          </div>
+
+          <div className="form-group-modal">
+            <label>Stock Mínimo (Alerta de Reorden) *</label>
+            <input
+              type="number"
+              name="minStock"
+              value={formData.minStock}
               onChange={handleInputChange}
               min="0"
               required
@@ -530,38 +607,60 @@ const ProductosCRUD = () => {
         </div>
 
         <div className="kpi-stat-card">
+          <div className="kpi-icon-pill" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
+            <FaDollarSign />
+          </div>
+          <div className="kpi-info">
+            <span className="kpi-label">Inversión Costo</span>
+            <span className="kpi-value">{formatCOP(totalCostInvestment)}</span>
+          </div>
+        </div>
+
+        <div className="kpi-stat-card">
           <div className="kpi-icon-pill success">
             <FaDollarSign />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Valor en Inventario</span>
+            <span className="kpi-label">Valor Venta Total</span>
             <span className="kpi-value">{formatCOP(totalValue)}</span>
           </div>
         </div>
 
-        <div className="kpi-stat-card">
+        <div
+          className={`kpi-stat-card ${stockFilterMode === 'CRITICAL' ? 'selected-critical' : ''}`}
+          onClick={() => setStockFilterMode(stockFilterMode === 'CRITICAL' ? 'ALL' : 'CRITICAL')}
+          style={{ cursor: 'pointer' }}
+          title="Clic para filtrar productos con stock bajo o agotados"
+        >
           <div className="kpi-icon-pill warning">
             <FaExclamationTriangle />
           </div>
           <div className="kpi-info">
-            <span className="kpi-label">Bajo Stock (&le; 5)</span>
-            <span className="kpi-value warning-text">{lowStockCount}</span>
-          </div>
-        </div>
-
-        <div className="kpi-stat-card">
-          <div className="kpi-icon-pill danger">
-            <FaTimesCircle />
-          </div>
-          <div className="kpi-info">
-            <span className="kpi-label">Agotados</span>
-            <span className="kpi-value danger-text">{outOfStockCount}</span>
+            <span className="kpi-label">Stock Crítico ({criticalCount})</span>
+            <span className="kpi-value warning-text">{criticalCount}</span>
           </div>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
+      {/* Stock Filter Tabs & Search Bar */}
       <div className="crud-filter-row">
+        <div className="stock-view-tabs">
+          <button
+            type="button"
+            className={`stock-tab-btn ${stockFilterMode === 'ALL' ? 'active' : ''}`}
+            onClick={() => setStockFilterMode('ALL')}
+          >
+            Todos ({productos.length})
+          </button>
+          <button
+            type="button"
+            className={`stock-tab-btn critical ${stockFilterMode === 'CRITICAL' ? 'active' : ''}`}
+            onClick={() => setStockFilterMode('CRITICAL')}
+          >
+            <FaExclamationTriangle /> Stock Crítico ({criticalCount})
+          </button>
+        </div>
+
         <div className="crud-search-box">
           <FaSearch className="search-icon" />
           <input
@@ -601,7 +700,7 @@ const ProductosCRUD = () => {
                 <th>Marca</th>
                 <th>Categoría</th>
                 <th className="text-center">IVA / Medida</th>
-                <th className="text-right">Precio Unitario</th>
+                <th className="text-right">Precio / Costo</th>
                 <th className="text-center">Stock</th>
                 <th className="text-center">Estado</th>
                 <th className="text-center">Acciones</th>
@@ -610,8 +709,9 @@ const ProductosCRUD = () => {
             <tbody>
               {filteredProductos.length > 0 ? (
                 filteredProductos.map((producto) => {
+                  const minStk = producto.minStock != null ? producto.minStock : 5;
                   const isOutOfStock = producto.cantidad <= 0;
-                  const isLowStock = producto.cantidad > 0 && producto.cantidad <= 5;
+                  const isLowStock = producto.cantidad > 0 && producto.cantidad <= minStk;
 
                   return (
                     <tr key={producto.id}>
@@ -633,17 +733,43 @@ const ProductosCRUD = () => {
                         </span>
                       </td>
                       <td className="text-right price-cell">
-                        {formatCOP(producto.precio)}
+                        <div className="price-stack">
+                          <strong className="sale-price">{formatCOP(producto.precio)}</strong>
+                          {Number(producto.costPrice) > 0 && (
+                            <span className="cost-sub">Costo: {formatCOP(producto.costPrice)}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="text-center stock-number-cell">
                         <strong>{producto.cantidad}</strong>
+                        <small className="min-stock-sub">mín: {minStk}</small>
                       </td>
                       <td className="text-center">
                         <span className={`status-pill ${isOutOfStock ? 'empty' : isLowStock ? 'low' : 'ok'}`}>
-                          {isOutOfStock ? 'Agotado' : isLowStock ? 'Bajo Stock' : 'Disponible'}
+                          {isOutOfStock ? 'Agotado' : isLowStock ? `Bajo (${producto.cantidad}/${minStk})` : 'Disponible'}
                         </span>
                       </td>
                       <td className="text-center actions-cell">
+                        <button
+                          onClick={() => {
+                            setSelectedProductForAdjust(producto);
+                            setShowAdjustModal(true);
+                          }}
+                          className="btn-action-adjust"
+                          title="Ajustar Stock / Entrada / Salida rápida en Kardex"
+                        >
+                          <FaExchangeAlt />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedProductForKardex(producto);
+                            setShowKardexModal(true);
+                          }}
+                          className="btn-action-kardex"
+                          title="Ver Historial Kardex y Trazabilidad"
+                        >
+                          <FaHistory />
+                        </button>
                         <button
                           onClick={() => {
                             setSelectedProductForLabel(producto);
@@ -697,6 +823,27 @@ const ProductosCRUD = () => {
         </button>
         {renderModalContent()}
       </Modal>
+
+      {/* Modal de Ajuste Rápido de Stock / Movimiento Kardex */}
+      <StockAdjustModal
+        product={selectedProductForAdjust}
+        isOpen={showAdjustModal}
+        onClose={() => {
+          setShowAdjustModal(false);
+          setSelectedProductForAdjust(null);
+        }}
+        onSuccess={fetchProductos}
+      />
+
+      {/* Modal de Historial Kardex */}
+      <KardexModal
+        product={selectedProductForKardex}
+        isOpen={showKardexModal}
+        onClose={() => {
+          setShowKardexModal(false);
+          setSelectedProductForKardex(null);
+        }}
+      />
 
       {/* Modal para Imprimir Etiquetas de Góndola y Stickers */}
       <BarcodeLabelModal
