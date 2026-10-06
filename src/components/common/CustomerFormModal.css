@@ -1,0 +1,206 @@
+/* ===================================================================
+   NexPOS - Customer Form Modal (Quick POS Registration & DIAN Info)
+   =================================================================== */
+
+.customer-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1300;
+    padding: 1rem;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+.customer-modal-card {
+    background: #ffffff;
+    border-radius: var(--radius-xl, 16px);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-color, #e2e8f0);
+    overflow: hidden;
+}
+
+.customer-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem 1.75rem;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.customer-header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.customer-icon-pill {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(5, 150, 105, 0.1);
+    color: var(--primary, #059669);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.customer-header-title h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--gray-900, #0f172a);
+    margin: 0;
+}
+
+.customer-header-title p {
+    font-size: 0.8rem;
+    color: var(--gray-500, #64748b);
+    margin: 2px 0 0 0;
+}
+
+.btn-close-customer {
+    background: transparent;
+    border: none;
+    color: var(--gray-400, #94a3b8);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-close-customer:hover {
+    color: var(--gray-700, #334155);
+    background: var(--gray-100, #f1f5f9);
+}
+
+.customer-modal-body {
+    padding: 1.5rem 1.75rem;
+    overflow-y: auto;
+}
+
+.customer-grid-form {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+}
+
+@media (max-width: 580px) {
+    .customer-grid-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+.cust-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.cust-form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.cust-form-group label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.cust-form-group input,
+.cust-form-group select,
+.cust-form-group textarea {
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #0f172a;
+    background: #f8fafc;
+    transition: all 0.2s;
+}
+
+.cust-form-group input:focus,
+.cust-form-group select:focus,
+.cust-form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary, #059669);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+.cust-field-hint {
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.customer-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 1.15rem 1.75rem;
+    background: #f8fafc;
+    border-top: 1px solid var(--border-color, #e2e8f0);
+    gap: 0.75rem;
+}
+
+.btn-cust-cancel {
+    padding: 0.65rem 1.25rem;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cust-cancel:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.btn-cust-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.4rem;
+    background: var(--primary, #059669);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
+    transition: all 0.2s;
+}
+
+.btn-cust-submit:hover:not(:disabled) {
+    background: var(--primary-hover, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(5, 150, 105, 0.35);
+}
+
+.btn-cust-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

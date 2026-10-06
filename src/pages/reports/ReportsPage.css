@@ -510,3 +510,80 @@
     gap: 1rem;
     color: var(--gray-500);
 }
+
+.sale-id-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.invoice-number-sub {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    background-color: var(--primary-light);
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+    font-family: monospace;
+}
+
+/* DIAN Invoice Status Badges */
+.dian-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.dian-badge.validated {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.dian-badge.pending {
+    background-color: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.dian-badge.rejected {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.dian-badge.offline {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--border-color);
+}
+
+/* DIAN Verification Action Button */
+.btn-verify-dian {
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    transition: all var(--transition-fast);
+}
+
+.btn-verify-dian:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}

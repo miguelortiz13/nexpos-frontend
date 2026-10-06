@@ -13,7 +13,9 @@ import {
     FaFileCsv,
     FaChartPie,
     FaChartBar,
-    FaPrint
+    FaPrint,
+    FaCheckCircle,
+    FaExternalLinkAlt
 } from 'react-icons/fa';
 import ThermalReceiptModal from '../../components/common/ThermalReceiptModal';
 import {
@@ -102,8 +104,10 @@ const ReportsPage = () => {
             // Search text filter
             const matchesSearch = !searchTerm ||
                 sale.id.toString().includes(searchTerm) ||
+                (sale.invoice?.invoiceNumber && sale.invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (sale.customerName && sale.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (sale.customerDoc && sale.customerDoc.includes(searchTerm));
+                (sale.customerDoc && sale.customerDoc.includes(searchTerm)) ||
+                (sale.invoice?.cude && sale.invoice.cude.toLowerCase().includes(searchTerm.toLowerCase()));
 
             return matchesSearch;
         });
@@ -179,14 +183,17 @@ const ReportsPage = () => {
             return;
         }
 
-        const headers = ['No. Factura', 'Fecha', 'Cliente', 'Documento', 'Medio de Pago', 'Total Facturado (COP)'];
+        const headers = ['ID Venta', 'Factura DIAN', 'Estado DIAN', 'Fecha', 'Cliente', 'Documento', 'Medio de Pago', 'Total Facturado (COP)', 'CUDE'];
         const rows = filteredSales.map(s => [
             s.id,
+            `"${s.invoice?.invoiceNumber || 'N/A'}"`,
+            `"${s.invoice?.factusStatus || 'LOCAL_POS'}"`,
             `"${new Date(s.saleDate).toLocaleString('es-CO')}"`,
             `"${s.customerName || 'Cliente General'}"`,
             `"${s.customerDoc || 'N/A'}"`,
             s.paymentMethod || 'EFECTIVO',
-            s.totalAmount
+            s.totalAmount,
+            `"${s.invoice?.cude || ''}"`
         ]);
 
         const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' +
@@ -239,6 +246,33 @@ const ReportsPage = () => {
                     </span>
                 );
         }
+    };
+
+    const renderDianBadge = (invoice) => {
+        if (!invoice) {
+            return <span className="dian-badge offline" title="Emisión interna local">Local POS</span>;
+        }
+        const status = invoice.factusStatus;
+        if (status === 'VALIDATED') {
+            return (
+                <span className="dian-badge validated" title={invoice.cude ? `CUDE: ${invoice.cude}` : 'Validada ante DIAN'}>
+                    <FaCheckCircle /> DIAN Válida
+                </span>
+            );
+        } else if (status === 'REJECTED') {
+            return (
+                <span className="dian-badge rejected" title={invoice.dianResponseMessage || 'Rechazada por DIAN'}>
+                    <FaTimes /> DIAN Rechazada
+                </span>
+            );
+        } else if (status === 'PENDING') {
+            return (
+                <span className="dian-badge pending" title="En cola de transmisión DIAN">
+                    En Trámite
+                </span>
+            );
+        }
+        return <span className="dian-badge offline">Local POS</span>;
     };
 
     return (
@@ -490,6 +524,7 @@ const ReportsPage = () => {
                                     <th>Fecha y Hora</th>
                                     <th>Cliente</th>
                                     <th>Documento</th>
+                                    <th>Estado DIAN</th>
                                     <th>Medio de Pago</th>
                                     <th className="text-right">Total Facturado</th>
                                     <th className="text-center">Comprobante</th>
@@ -500,6 +535,9 @@ const ReportsPage = () => {
                                     <tr key={sale.id}>
                                         <td className="sale-id-cell">
                                             <strong>#{sale.id}</strong>
+                                            {sale.invoice?.invoiceNumber && (
+                                                <span className="invoice-number-sub">{sale.invoice.invoiceNumber}</span>
+                                            )}
                                         </td>
                                         <td className="date-cell">
                                             {new Date(sale.saleDate).toLocaleString('es-CO', {
@@ -517,6 +555,9 @@ const ReportsPage = () => {
                                             {sale.customerDoc || '222222222222'}
                                         </td>
                                         <td>
+                                            {renderDianBadge(sale.invoice)}
+                                        </td>
+                                        <td>
                                             {renderPaymentBadge(sale.paymentMethod)}
                                         </td>
                                         <td className="text-right amount-cell">
@@ -524,6 +565,17 @@ const ReportsPage = () => {
                                         </td>
                                         <td className="text-center">
                                             <div className="reports-actions-flex">
+                                                {sale.invoice?.qrData && (
+                                                    <a
+                                                        href={sale.invoice.qrData}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="btn-verify-dian"
+                                                        title="Verificar comprobante en catálogo oficial DIAN"
+                                                    >
+                                                        <FaExternalLinkAlt /> DIAN
+                                                    </a>
+                                                )}
                                                 <button
                                                     className="btn-print-thermal-table"
                                                     onClick={() => setSelectedSaleForTicket(sale)}
@@ -544,7 +596,7 @@ const ReportsPage = () => {
                                 ))}
                                 {filteredSales.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan="7" className="empty-reports-cell">
+                                        <td colSpan="8" className="empty-reports-cell">
                                             <FaReceipt size={36} />
                                             <p>No se encontraron registros de ventas con los filtros especificados.</p>
                                         </td>

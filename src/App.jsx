@@ -9,6 +9,7 @@ import SalesPage from "./pages/sales/SalesPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import UsersPage from "./pages/users/UsersPage";
 import CashShiftPage from "./pages/cash/CashShiftPage";
+import CustomersPage from "./pages/customers/CustomersPage";
 import Login from "./pages/auth/Login";
 
 function App() {
@@ -43,6 +44,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <CashShiftPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/customers"
+                  element={
+                    <ProtectedRoute>
+                      <CustomersPage />
                     </ProtectedRoute>
                   }
                 />

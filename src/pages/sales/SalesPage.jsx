@@ -18,16 +18,20 @@ import {
     FaReceipt,
     FaTh,
     FaList,
-    FaPrint
+    FaPrint,
+    FaUserPlus,
+    FaUserCheck
 } from 'react-icons/fa';
 import { toast, ToastContainer } from 'react-toastify';
 import BarcodeScanner from '../../components/common/BarcodeScanner';
 import useHardwareScanner from '../../hooks/useHardwareScanner';
 import ThermalReceiptModal from '../../components/common/ThermalReceiptModal';
+import CustomerFormModal from '../../components/common/CustomerFormModal';
 import { playBarcodeBeep } from '../../utils/audio';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '../../api/client';
 import cashShiftService from '../../api/cashShiftService';
+import customerService from '../../api/customerService';
 import './SalesPage.css';
 
 const formatCOP = (value) => {
@@ -53,8 +57,13 @@ const SalesPage = () => {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('EFECTIVO');
     const [amountPaid, setAmountPaid] = useState('');
+    const [customerId, setCustomerId] = useState(1);
     const [customerName, setCustomerName] = useState('Consumidor Final');
     const [customerDoc, setCustomerDoc] = useState('222222222222');
+    const [customerEmail, setCustomerEmail] = useState('facturacion@nexpos.com.co');
+    const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+    const [customerSuggestions, setCustomerSuggestions] = useState([]);
+    const [showCustomerModal, setShowCustomerModal] = useState(false);
 
     // Modal de Factura / Éxito
     const [completedSale, setCompletedSale] = useState(null);
@@ -209,6 +218,38 @@ const SalesPage = () => {
         setShowPaymentModal(true);
     };
 
+    const handleCustomerSearch = async (query) => {
+        setCustomerSearchQuery(query);
+        if (!query || query.trim().length < 2) {
+            setCustomerSuggestions([]);
+            return;
+        }
+        try {
+            const results = await customerService.search(query.trim());
+            setCustomerSuggestions(results || []);
+        } catch {
+            setCustomerSuggestions([]);
+        }
+    };
+
+    const selectCustomer = (cust) => {
+        setCustomerId(cust.id);
+        setCustomerDoc(cust.docNumber);
+        setCustomerName(cust.name);
+        setCustomerEmail(cust.email || 'facturacion@nexpos.com.co');
+        setCustomerSuggestions([]);
+        setCustomerSearchQuery('');
+    };
+
+    const resetToConsumidorFinal = () => {
+        setCustomerId(1);
+        setCustomerDoc('222222222222');
+        setCustomerName('Consumidor Final');
+        setCustomerEmail('facturacion@nexpos.com.co');
+        setCustomerSuggestions([]);
+        setCustomerSearchQuery('');
+    };
+
     const handleConfirmPayment = async (e) => {
         e.preventDefault();
         const total = calculateTotal();
@@ -222,9 +263,10 @@ const SalesPage = () => {
         setLoading(true);
 
         const saleRequest = {
-            customerId: 1,
+            customerId: customerId || 1,
             customerName: customerName.trim() || 'Consumidor Final',
             customerDoc: customerDoc.trim() || '222222222222',
+            customerEmail: customerEmail?.trim() || null,
             paymentMethod,
             amountPaid: paymentMethod === 'EFECTIVO' ? paid : total,
             items: cart.map(item => ({
@@ -632,27 +674,73 @@ const SalesPage = () => {
                         </div>
 
                         <form onSubmit={handleConfirmPayment}>
-                            {/* Customer Information */}
-                            <div className="payment-customer-row">
-                                <div className="form-group-pos">
-                                    <label>Nombre del Cliente</label>
-                                    <input
-                                        type="text"
-                                        value={customerName}
-                                        onChange={e => setCustomerName(e.target.value)}
-                                        placeholder="Ej: Consumidor Final"
-                                        required
-                                    />
+                            {/* Customer Information & DIAN Selection */}
+                            <div className="customer-selection-card">
+                                <div className="customer-card-header">
+                                    <label>Cliente / Facturación DIAN</label>
+                                    <div className="customer-card-actions">
+                                        <button
+                                            type="button"
+                                            className={`btn-cust-pill ${customerDoc === '222222222222' ? 'primary' : ''}`}
+                                            onClick={resetToConsumidorFinal}
+                                            title="Asignar Consumidor Final predeterminado"
+                                        >
+                                            Consumidor Final
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn-cust-pill"
+                                            onClick={() => setShowCustomerModal(true)}
+                                            title="Registrar nuevo cliente con Cédula/NIT y correo"
+                                        >
+                                            <FaUserPlus /> + Nuevo
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="form-group-pos">
-                                    <label>Cédula / NIT</label>
+
+                                {/* Smart Autocomplete / Search Box */}
+                                <div className="customer-search-box-pos">
                                     <input
                                         type="text"
-                                        value={customerDoc}
-                                        onChange={e => setCustomerDoc(e.target.value)}
-                                        placeholder="Ej: 222222222222"
-                                        required
+                                        className="customer-search-input"
+                                        placeholder="Buscar por Cédula, NIT o Nombre..."
+                                        value={customerSearchQuery}
+                                        onChange={e => handleCustomerSearch(e.target.value)}
                                     />
+                                    {customerSuggestions.length > 0 && (
+                                        <div className="customer-suggestions-dropdown">
+                                            {customerSuggestions.map(cust => (
+                                                <div
+                                                    key={cust.id}
+                                                    className="customer-suggestion-item"
+                                                    onClick={() => selectCustomer(cust)}
+                                                >
+                                                    <div>
+                                                        <div className="cust-sugg-name">{cust.name}</div>
+                                                        <div className="cust-sugg-meta">
+                                                            <span>{cust.docType} {cust.docNumber}</span>
+                                                            {cust.email && <span>• {cust.email}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <FaCheckCircle style={{ color: 'var(--primary)' }} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Active Customer Badge */}
+                                <div className="active-customer-badge">
+                                    <div className="active-cust-info">
+                                        <span className="active-cust-name">{customerName}</span>
+                                        <div className="active-cust-details">
+                                            <span>Doc: {customerDoc}</span>
+                                            {customerEmail && (
+                                                <span className="dian-email-tag">• Email DIAN: {customerEmail}</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <FaUserCheck style={{ color: 'var(--primary)', fontSize: '1.2rem' }} />
                                 </div>
                             </div>
 
@@ -836,6 +924,14 @@ const SalesPage = () => {
                 sale={completedSale}
                 isOpen={showThermalReceipt}
                 onClose={() => setShowThermalReceipt(false)}
+            />
+
+            {/* Modal de Registro Rápido de Clientes POS */}
+            <CustomerFormModal
+                isOpen={showCustomerModal}
+                onClose={() => setShowCustomerModal(false)}
+                onCustomerSaved={selectCustomer}
+                initialDocNumber={customerSearchQuery}
             />
         </div>
     );

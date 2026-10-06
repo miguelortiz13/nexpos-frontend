@@ -857,6 +857,158 @@
     margin-bottom: 1rem;
 }
 
+/* Customer Selector Section in Checkout Modal */
+.customer-selection-card {
+    background-color: var(--gray-50);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.1rem;
+}
+
+.customer-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+
+.customer-card-header label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.customer-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-cust-pill {
+    background: #ffffff;
+    border: 1px solid var(--gray-300);
+    color: var(--gray-700);
+    padding: 3px 9px;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-cust-pill:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-cust-pill.primary {
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.customer-search-box-pos {
+    position: relative;
+    margin-bottom: 0.5rem;
+}
+
+.customer-search-input {
+    width: 100%;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    background-color: #ffffff;
+}
+
+.customer-search-input:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--primary-focus);
+}
+
+.customer-suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-top: 4px;
+}
+
+.customer-suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--gray-100);
+    transition: background-color var(--transition-fast);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.customer-suggestion-item:hover {
+    background-color: var(--gray-50);
+}
+
+.cust-sugg-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--gray-900);
+}
+
+.cust-sugg-meta {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    display: flex;
+    gap: 8px;
+}
+
+.active-customer-badge {
+    background-color: #ffffff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    padding: 0.6rem 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.active-cust-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.active-cust-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--gray-900);
+}
+
+.active-cust-details {
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    display: flex;
+    gap: 8px;
+}
+
+.active-cust-details .dian-email-tag {
+    color: var(--primary);
+    font-weight: 600;
+}
+
 .form-group-pos {
     margin-bottom: 1rem;
 }
