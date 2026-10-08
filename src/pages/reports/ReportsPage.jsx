@@ -16,9 +16,13 @@ import {
     FaChartBar,
     FaPrint,
     FaCheckCircle,
-    FaExternalLinkAlt
+    FaExternalLinkAlt,
+    FaBan,
+    FaUndoAlt
 } from 'react-icons/fa';
 import ThermalReceiptModal from '../../components/common/ThermalReceiptModal';
+import CreditNoteModal from '../../components/common/CreditNoteModal';
+import CreditNoteReceiptModal from '../../components/common/CreditNoteReceiptModal';
 import {
     ResponsiveContainer,
     AreaChart,
@@ -57,8 +61,11 @@ const ReportsPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('');
     const [timeRange, setTimeRange] = useState('ALL'); // 'TODAY', 'WEEK', 'MONTH', 'ALL'
+    const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL', 'COMPLETED', 'ANNULLED'
     const [loading, setLoading] = useState(false);
     const [selectedSaleForTicket, setSelectedSaleForTicket] = useState(null);
+    const [saleToAnnul, setSaleToAnnul] = useState(null);
+    const [creditNoteToView, setCreditNoteToView] = useState(null); // { creditNote, sale }
 
     useEffect(() => {
         fetchSales();
@@ -78,11 +85,15 @@ const ReportsPage = () => {
         }
     };
 
-    // Filter sales based on search term, date, and preset time range
+    // Filter sales based on search term, date, preset time range, and status
     const filteredSales = useMemo(() => {
         const now = new Date();
 
         return sales.filter(sale => {
+            // Status filter
+            if (statusFilter === 'COMPLETED' && sale.status === 'ANNULLED') return false;
+            if (statusFilter === 'ANNULLED' && sale.status !== 'ANNULLED') return false;
+
             const saleDate = new Date(sale.saleDate);
 
             // Preset Time Range filter
@@ -107,30 +118,43 @@ const ReportsPage = () => {
             const matchesSearch = !searchTerm ||
                 sale.id.toString().includes(searchTerm) ||
                 (sale.invoice?.invoiceNumber && sale.invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (sale.creditNote?.creditNoteNumber && sale.creditNote.creditNoteNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (sale.customerName && sale.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 (sale.customerDoc && sale.customerDoc.includes(searchTerm)) ||
                 (sale.invoice?.cude && sale.invoice.cude.toLowerCase().includes(searchTerm.toLowerCase()));
 
             return matchesSearch;
         });
-    }, [sales, searchTerm, dateFilter, timeRange]);
+    }, [sales, searchTerm, dateFilter, timeRange, statusFilter]);
 
     // Financial KPI Metrics
-    const totalRevenue = useMemo(() => {
-        return filteredSales.reduce((acc, s) => acc + Number(s.totalAmount || 0), 0);
+    const activeSales = useMemo(() => {
+        return filteredSales.filter(s => s.status !== 'ANNULLED');
     }, [filteredSales]);
 
-    const totalTickets = filteredSales.length;
+    const annulledSales = useMemo(() => {
+        return filteredSales.filter(s => s.status === 'ANNULLED');
+    }, [filteredSales]);
+
+    const totalRevenue = useMemo(() => {
+        return activeSales.reduce((acc, s) => acc + Number(s.totalAmount || 0), 0);
+    }, [activeSales]);
+
+    const totalAnnulledAmount = useMemo(() => {
+        return annulledSales.reduce((acc, s) => acc + Number(s.totalAmount || 0), 0);
+    }, [annulledSales]);
+
+    const totalTickets = activeSales.length;
 
     const averageTicket = useMemo(() => {
         return totalTickets > 0 ? totalRevenue / totalTickets : 0;
     }, [totalRevenue, totalTickets]);
 
-    // Analytics: Sales Trend by Date for AreaChart
+    // Analytics: Sales Trend by Date for AreaChart (Net Completed Sales)
     const salesTrendData = useMemo(() => {
         const map = {};
         // Process in chronological order
-        [...filteredSales].reverse().forEach(sale => {
+        [...activeSales].reverse().forEach(sale => {
             const d = new Date(sale.saleDate);
             const key = d.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
             if (!map[key]) {
@@ -140,12 +164,12 @@ const ReportsPage = () => {
             map[key].transacciones += 1;
         });
         return Object.values(map);
-    }, [filteredSales]);
+    }, [activeSales]);
 
-    // Analytics: Payment Distribution for Donut PieChart
+    // Analytics: Payment Distribution for Donut PieChart (Net Completed Sales)
     const paymentDistributionData = useMemo(() => {
         const counts = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0, OTROS: 0 };
-        filteredSales.forEach(s => {
+        activeSales.forEach(s => {
             if (s.paymentMethod === 'MIXTO') {
                 counts.EFECTIVO += Number(s.cashAmount || 0);
                 counts.TARJETA += Number(s.cardAmount || 0);
@@ -167,12 +191,12 @@ const ReportsPage = () => {
                 rawKey: key,
                 value: counts[key]
             }));
-    }, [filteredSales]);
+    }, [activeSales]);
 
-    // Analytics: Top Selling Products
+    // Analytics: Top Selling Products (Net Completed Sales)
     const topProductsData = useMemo(() => {
         const productMap = {};
-        filteredSales.forEach(sale => {
+        activeSales.forEach(sale => {
             if (sale.items && Array.isArray(sale.items)) {
                 sale.items.forEach(item => {
                     const name = item.productName || 'Producto General';
@@ -187,9 +211,9 @@ const ReportsPage = () => {
         return Object.values(productMap)
             .sort((a, b) => b.cantidad - a.cantidad)
             .slice(0, 5);
-    }, [filteredSales]);
+    }, [activeSales]);
 
-    // Export Table to CSV
+    // Export Table to CSV with Credit Note & Annulment Audit
     const exportToCSV = () => {
         if (filteredSales.length === 0) {
             alert('No hay datos de ventas para exportar');
@@ -199,6 +223,9 @@ const ReportsPage = () => {
         const headers = [
             'ID Venta',
             'Factura DIAN',
+            'Estado Venta',
+            'Nota Crédito DIAN',
+            'Motivo Anulación',
             'Estado DIAN',
             'Fecha',
             'Cliente',
@@ -221,6 +248,9 @@ const ReportsPage = () => {
             return [
                 s.id,
                 `"${s.invoice?.invoiceNumber || 'N/A'}"`,
+                `"${s.status === 'ANNULLED' ? 'ANULADA' : 'COMPLETADA'}"`,
+                `"${s.creditNote?.creditNoteNumber || 'N/A'}"`,
+                `"${s.annulmentReason || 'N/A'}"`,
                 `"${s.invoice?.factusStatus || 'LOCAL_POS'}"`,
                 `"${new Date(s.saleDate).toLocaleString('es-CO')}"`,
                 `"${s.customerName || 'Cliente General'}"`,
@@ -329,6 +359,45 @@ const ReportsPage = () => {
         return <span className="dian-badge offline">Local POS</span>;
     };
 
+    const renderSaleStatusBadge = (sale) => {
+        if (sale.status === 'ANNULLED') {
+            return (
+                <span
+                    className="sale-status-badge annulled"
+                    title={sale.annulmentReason ? `Anulada por ${sale.annulledBy || 'sistema'}: ${sale.annulmentReason}` : 'Venta Anulada'}
+                >
+                    <FaBan /> Anulada
+                </span>
+            );
+        }
+        return (
+            <span className="sale-status-badge completed" title="Venta completada">
+                <FaCheckCircle /> Completada
+            </span>
+        );
+    };
+
+    const openCreditNoteReceipt = async (sale) => {
+        try {
+            const res = await api.get(`/api/sales/${sale.id}/credit-note`);
+            setCreditNoteToView({ creditNote: res.data, sale });
+        } catch (err) {
+            console.error('Error al obtener nota crédito:', err);
+            if (sale.creditNote) {
+                setCreditNoteToView({ creditNote: sale.creditNote, sale });
+            } else {
+                alert('No se pudo cargar el comprobante de Nota Crédito asociado.');
+            }
+        }
+    };
+
+    const handleAnnulSuccess = (creditNote) => {
+        fetchSales();
+        if (saleToAnnul) {
+            setCreditNoteToView({ creditNote, sale: saleToAnnul });
+        }
+    };
+
     return (
         <div className="reports-dashboard-container">
             {/* Header & Quick Action Buttons */}
@@ -344,32 +413,55 @@ const ReportsPage = () => {
                 </div>
             </div>
 
-            {/* Quick Time Range Preset Filters */}
-            <div className="reports-range-selector">
-                <button
-                    className={`range-tab ${timeRange === 'TODAY' ? 'active' : ''}`}
-                    onClick={() => setTimeRange('TODAY')}
-                >
-                    Hoy
-                </button>
-                <button
-                    className={`range-tab ${timeRange === 'WEEK' ? 'active' : ''}`}
-                    onClick={() => setTimeRange('WEEK')}
-                >
-                    Últimos 7 días
-                </button>
-                <button
-                    className={`range-tab ${timeRange === 'MONTH' ? 'active' : ''}`}
-                    onClick={() => setTimeRange('MONTH')}
-                >
-                    Últimos 30 días
-                </button>
-                <button
-                    className={`range-tab ${timeRange === 'ALL' ? 'active' : ''}`}
-                    onClick={() => setTimeRange('ALL')}
-                >
-                    Historial Completo
-                </button>
+            {/* Quick Time Range & Status Preset Filters */}
+            <div className="reports-presets-toolbar">
+                <div className="reports-range-selector">
+                    <button
+                        className={`range-tab ${timeRange === 'TODAY' ? 'active' : ''}`}
+                        onClick={() => setTimeRange('TODAY')}
+                    >
+                        Hoy
+                    </button>
+                    <button
+                        className={`range-tab ${timeRange === 'WEEK' ? 'active' : ''}`}
+                        onClick={() => setTimeRange('WEEK')}
+                    >
+                        Últimos 7 días
+                    </button>
+                    <button
+                        className={`range-tab ${timeRange === 'MONTH' ? 'active' : ''}`}
+                        onClick={() => setTimeRange('MONTH')}
+                    >
+                        Últimos 30 días
+                    </button>
+                    <button
+                        className={`range-tab ${timeRange === 'ALL' ? 'active' : ''}`}
+                        onClick={() => setTimeRange('ALL')}
+                    >
+                        Historial Completo
+                    </button>
+                </div>
+
+                <div className="reports-status-selector">
+                    <button
+                        className={`status-tab ${statusFilter === 'ALL' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('ALL')}
+                    >
+                        Todas ({sales.length})
+                    </button>
+                    <button
+                        className={`status-tab ${statusFilter === 'COMPLETED' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('COMPLETED')}
+                    >
+                        Completadas ({sales.filter(s => s.status !== 'ANNULLED').length})
+                    </button>
+                    <button
+                        className={`status-tab annulled-tab ${statusFilter === 'ANNULLED' ? 'active' : ''}`}
+                        onClick={() => setStatusFilter('ANNULLED')}
+                    >
+                        Anuladas / NC ({sales.filter(s => s.status === 'ANNULLED').length})
+                    </button>
+                </div>
             </div>
 
             {/* Financial Summary Cards */}
@@ -379,7 +471,7 @@ const ReportsPage = () => {
                         <FaMoneyBillWave />
                     </div>
                     <div className="stat-content">
-                        <span className="stat-label">Ingresos Totales</span>
+                        <span className="stat-label">Ventas Netas</span>
                         <span className="stat-number revenue-value">{formatCOP(totalRevenue)}</span>
                     </div>
                 </div>
@@ -389,7 +481,7 @@ const ReportsPage = () => {
                         <FaFileInvoiceDollar />
                     </div>
                     <div className="stat-content">
-                        <span className="stat-label">Facturas Emitidas</span>
+                        <span className="stat-label">Facturas Activas</span>
                         <span className="stat-number">{totalTickets}</span>
                     </div>
                 </div>
@@ -401,6 +493,19 @@ const ReportsPage = () => {
                     <div className="stat-content">
                         <span className="stat-label">Ticket Promedio</span>
                         <span className="stat-number">{formatCOP(averageTicket)}</span>
+                    </div>
+                </div>
+
+                <div className="reports-stat-card">
+                    <div className="stat-icon-wrapper annulled-kpi">
+                        <FaBan />
+                    </div>
+                    <div className="stat-content">
+                        <span className="stat-label">Notas Crédito (DIAN)</span>
+                        <div className="kpi-split-stat">
+                            <span className="stat-number annulled-number">{annulledSales.length}</span>
+                            <span className="stat-sub-val">({formatCOP(totalAnnulledAmount)})</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -578,19 +683,23 @@ const ReportsPage = () => {
                                     <th>Fecha y Hora</th>
                                     <th>Cliente</th>
                                     <th>Documento</th>
+                                    <th>Estado Venta</th>
                                     <th>Estado DIAN</th>
                                     <th>Medio de Pago</th>
                                     <th className="text-right">Total Facturado</th>
-                                    <th className="text-center">Comprobante</th>
+                                    <th className="text-center">Comprobante y Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredSales.map(sale => (
-                                    <tr key={sale.id}>
+                                    <tr key={sale.id} className={sale.status === 'ANNULLED' ? 'row-annulled' : ''}>
                                         <td className="sale-id-cell">
                                             <strong>#{sale.id}</strong>
                                             {sale.invoice?.invoiceNumber && (
                                                 <span className="invoice-number-sub">{sale.invoice.invoiceNumber}</span>
+                                            )}
+                                            {sale.creditNote?.creditNoteNumber && (
+                                                <span className="nc-number-sub">{sale.creditNote.creditNoteNumber}</span>
                                             )}
                                         </td>
                                         <td className="date-cell">
@@ -609,13 +718,21 @@ const ReportsPage = () => {
                                             {sale.customerDoc || '222222222222'}
                                         </td>
                                         <td>
+                                            {renderSaleStatusBadge(sale)}
+                                        </td>
+                                        <td>
                                             {renderDianBadge(sale.invoice)}
                                         </td>
                                         <td>
                                             {renderPaymentBadge(sale.paymentMethod, sale)}
                                         </td>
                                         <td className="text-right amount-cell">
-                                            {formatCOP(sale.totalAmount)}
+                                            <span className={sale.status === 'ANNULLED' ? 'amount-annulled' : ''}>
+                                                {formatCOP(sale.totalAmount)}
+                                            </span>
+                                            {sale.status === 'ANNULLED' && (
+                                                <span className="amount-annulled-tag">ANULADA</span>
+                                            )}
                                         </td>
                                         <td className="text-center">
                                             <div className="reports-actions-flex">
@@ -644,13 +761,30 @@ const ReportsPage = () => {
                                                 >
                                                     <FaFilePdf /> Factura
                                                 </button>
+                                                {sale.status === 'ANNULLED' ? (
+                                                    <button
+                                                        className="btn-action-nc"
+                                                        onClick={() => openCreditNoteReceipt(sale)}
+                                                        title="Ver Nota Crédito DIAN y comprobante de anulación"
+                                                    >
+                                                        <FaReceipt /> Ver NC
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        className="btn-action-annul"
+                                                        onClick={() => setSaleToAnnul(sale)}
+                                                        title="Anular factura y emitir Nota Crédito DIAN"
+                                                    >
+                                                        <FaBan /> Anular
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
                                 ))}
                                 {filteredSales.length === 0 && !loading && (
                                     <tr>
-                                        <td colSpan="8" className="empty-reports-cell">
+                                        <td colSpan="9" className="empty-reports-cell">
                                             <FaReceipt size={36} />
                                             <p>No se encontraron registros de ventas con los filtros especificados.</p>
                                         </td>
@@ -667,6 +801,22 @@ const ReportsPage = () => {
                 sale={selectedSaleForTicket}
                 isOpen={!!selectedSaleForTicket}
                 onClose={() => setSelectedSaleForTicket(null)}
+            />
+
+            {/* Modal de Confirmación y Emisión de Nota Crédito DIAN */}
+            <CreditNoteModal
+                sale={saleToAnnul}
+                isOpen={!!saleToAnnul}
+                onClose={() => setSaleToAnnul(null)}
+                onSuccess={handleAnnulSuccess}
+            />
+
+            {/* Modal de Tiquete Térmico de Nota Crédito DIAN */}
+            <CreditNoteReceiptModal
+                creditNote={creditNoteToView?.creditNote}
+                sale={creditNoteToView?.sale}
+                isOpen={!!creditNoteToView}
+                onClose={() => setCreditNoteToView(null)}
             />
         </div>
     );

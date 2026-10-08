@@ -64,7 +64,15 @@
     transform: translateY(-1px);
 }
 
-/* Quick Time Range Tabs */
+/* Quick Time Range & Status Tabs Toolbar */
+.reports-presets-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
 .reports-range-selector {
     display: flex;
     gap: 0.5rem;
@@ -97,10 +105,45 @@
     box-shadow: var(--shadow-xs);
 }
 
+.reports-status-selector {
+    display: flex;
+    gap: 0.35rem;
+    background-color: var(--gray-100);
+    padding: 4px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+}
+
+.status-tab {
+    background: none;
+    border: none;
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.status-tab:hover {
+    color: var(--gray-900);
+}
+
+.status-tab.active {
+    background-color: var(--surface-card);
+    color: var(--primary-dark);
+    box-shadow: var(--shadow-xs);
+}
+
+.status-tab.annulled-tab.active {
+    color: #e11d48;
+}
+
 /* KPI Cards */
 .reports-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
 }
 
@@ -147,9 +190,30 @@
     color: #a855f7;
 }
 
+.stat-icon-wrapper.annulled-kpi {
+    background-color: #ffe4e6;
+    color: #e11d48;
+}
+
 .stat-content {
     display: flex;
     flex-direction: column;
+}
+
+.kpi-split-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.stat-number.annulled-number {
+    color: #e11d48;
+}
+
+.stat-sub-val {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #9f1239;
 }
 
 .stat-label {
@@ -592,6 +656,110 @@
 }
 
 .btn-verify-dian:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+/* Sale Status Badges */
+.sale-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.sale-status-badge.completed {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.sale-status-badge.annulled {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.nc-number-sub {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #e11d48;
+    background-color: #ffe4e6;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+    font-family: monospace;
+}
+
+/* Annulled Sale Row Styling */
+.row-annulled {
+    background-color: #fff8f8;
+    opacity: 0.88;
+}
+
+.row-annulled:hover {
+    background-color: #fee2e2 !important;
+}
+
+.amount-annulled {
+    text-decoration: line-through;
+    color: var(--gray-400);
+}
+
+.amount-annulled-tag {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: #dc2626;
+    letter-spacing: 0.5px;
+}
+
+/* Annul & Credit Note Action Buttons */
+.btn-action-annul {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-action-annul:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
+}
+
+.btn-action-nc {
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #2563eb;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-action-nc:hover {
     background-color: #2563eb;
     border-color: #2563eb;
     color: #ffffff;

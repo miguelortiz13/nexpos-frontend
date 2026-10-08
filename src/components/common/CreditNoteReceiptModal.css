@@ -1,0 +1,440 @@
+/* Credit Note Thermal Receipt Modal Styles */
+.credit-receipt-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1060;
+    padding: 1rem;
+    animation: fadeInModal 0.2s ease-out;
+}
+
+.credit-receipt-modal-wrapper {
+    background-color: #ffffff;
+    border-radius: var(--radius-lg, 12px);
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+/* Modal Topbar Controls */
+.credit-receipt-modal-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.25rem;
+    background-color: #f8fafc;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.topbar-info {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.nc-badge-icon {
+    font-size: 1.4rem;
+    color: #e11d48;
+}
+
+.topbar-info h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gray-800, #1e293b);
+    margin: 0;
+}
+
+.topbar-sub {
+    font-size: 0.75rem;
+    color: var(--gray-500, #64748b);
+}
+
+.topbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.paper-width-switch {
+    display: flex;
+    background-color: #e2e8f0;
+    padding: 2px;
+    border-radius: 6px;
+}
+
+.btn-paper-switch {
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--gray-600, #475569);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.btn-paper-switch.active {
+    background-color: #ffffff;
+    color: var(--gray-900, #0f172a);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-action-pdf,
+.btn-action-print {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+}
+
+.btn-action-pdf {
+    background-color: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+.btn-action-pdf:hover:not(:disabled) {
+    background-color: #dbeafe;
+}
+
+.btn-action-print {
+    background-color: #e11d48;
+    color: #ffffff;
+}
+
+.btn-action-print:hover {
+    background-color: #be123c;
+}
+
+.btn-action-close {
+    background: transparent;
+    border: none;
+    color: var(--gray-500, #64748b);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-action-close:hover {
+    background-color: #e2e8f0;
+    color: var(--gray-800, #1e293b);
+}
+
+/* Scrollable Container */
+.credit-receipt-scroll-container {
+    padding: 1.25rem;
+    overflow-y: auto;
+    background-color: #f1f5f9;
+    display: flex;
+    justify-content: center;
+}
+
+/* Thermal Sheet */
+.thermal-credit-sheet {
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    font-family: 'Courier New', Courier, monospace;
+    color: #000000;
+    padding: 14px 12px;
+    box-sizing: border-box;
+    line-height: 1.35;
+    font-size: 11px;
+}
+
+.thermal-credit-sheet.paper-80mm {
+    width: 320px;
+}
+
+.thermal-credit-sheet.paper-58mm {
+    width: 240px;
+    font-size: 9.5px;
+    padding: 10px 8px;
+}
+
+/* Receipt content elements */
+.thermal-center-header {
+    text-align: center;
+}
+
+.commerce-name {
+    font-weight: bold;
+    font-size: 1.25em;
+    text-transform: uppercase;
+}
+
+.commerce-nit,
+.commerce-address,
+.commerce-phone {
+    font-size: 0.9em;
+}
+
+.receipt-separator-dashed {
+    border-top: 1px dashed #000000;
+    margin: 8px 0;
+}
+
+.nc-title {
+    font-weight: bold;
+    font-size: 1.15em;
+    color: #000000;
+    letter-spacing: 0.5px;
+}
+
+.nc-number-bold {
+    font-weight: 900;
+    font-size: 1.3em;
+    margin: 2px 0;
+}
+
+.receipt-dian-notice {
+    font-size: 0.85em;
+    font-weight: bold;
+}
+
+.receipt-dian-res {
+    font-size: 0.8em;
+}
+
+/* Meta lines */
+.receipt-meta-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.meta-line {
+    display: flex;
+    justify-content: space-between;
+}
+
+.meta-label {
+    font-weight: bold;
+}
+
+.meta-val {
+    text-align: right;
+}
+
+.reason-line {
+    flex-direction: column;
+    margin-top: 3px;
+    background-color: #f8fafc;
+    padding: 4px;
+    border-left: 2px solid #000000;
+}
+
+.reason-val {
+    text-align: left;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+/* Items Table */
+.receipt-section-title {
+    font-weight: bold;
+    text-align: center;
+    font-size: 0.95em;
+    margin-bottom: 4px;
+}
+
+.receipt-items-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.receipt-items-table th {
+    border-bottom: 1px solid #000000;
+    font-size: 0.85em;
+    padding-bottom: 2px;
+}
+
+.th-desc { text-align: left; }
+.th-cant { text-align: center; }
+.th-total { text-align: right; }
+
+.receipt-items-table td {
+    padding: 3px 0;
+    vertical-align: top;
+}
+
+.td-desc { text-align: left; }
+.td-cant { text-align: center; }
+.td-total { text-align: right; font-weight: bold; }
+
+.item-name-line {
+    font-weight: 600;
+}
+
+.item-unit-sub {
+    font-size: 0.85em;
+    color: #4b5563;
+}
+
+/* Totals */
+.receipt-totals-block {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.totals-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.totals-row.total-big {
+    font-weight: 900;
+    font-size: 1.25em;
+    border-top: 1px solid #000000;
+    border-bottom: 1px solid #000000;
+    padding: 3px 0;
+}
+
+/* DIAN Box */
+.dian-compliance-box {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dian-status-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.dian-ok-icon {
+    color: #059669;
+}
+
+.cude-box {
+    margin-top: 3px;
+}
+
+.cude-title {
+    font-weight: bold;
+    font-size: 0.75em;
+    display: block;
+}
+
+.cude-string {
+    font-size: 0.7em;
+    word-break: break-all;
+    display: block;
+    line-height: 1.1;
+}
+
+.receipt-qr-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 6px 0;
+}
+
+.qr-scan-hint {
+    font-size: 0.75em;
+    margin-top: 3px;
+    max-width: 90%;
+    color: #4b5563;
+}
+
+.btn-verify-dian-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75em;
+    color: #2563eb;
+    text-decoration: underline;
+    margin-top: 4px;
+}
+
+/* Barcode */
+.receipt-barcode-box {
+    display: flex;
+    justify-content: center;
+    margin: 4px 0;
+}
+
+.receipt-barcode-box svg {
+    max-width: 100%;
+}
+
+/* Signatures */
+.receipt-signatures-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin: 16px 0 8px 0;
+}
+
+.signature-col {
+    text-align: center;
+    font-size: 0.8em;
+}
+
+.sig-line {
+    border-bottom: 1px solid #000000;
+    margin-bottom: 3px;
+    height: 25px;
+}
+
+.receipt-footer-text {
+    text-align: center;
+    font-size: 0.8em;
+    font-style: italic;
+    margin-top: 6px;
+}
+
+/* Print Rules */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    #thermal-credit-print-target,
+    #thermal-credit-print-target * {
+        visibility: visible !important;
+    }
+
+    #thermal-credit-print-target {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+}
