@@ -433,6 +433,16 @@
     color: #86198f;
 }
 
+.pay-badge.split {
+    background-color: #e0e7ff;
+    color: #4338ca;
+}
+
+.pay-badge.other {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
 .amount-cell {
     font-weight: 800;
     color: var(--gray-900);

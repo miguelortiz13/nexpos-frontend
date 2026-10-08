@@ -10,6 +10,7 @@ import {
     FaTimes,
     FaCreditCard,
     FaMobileAlt,
+    FaCoins,
     FaFileCsv,
     FaChartPie,
     FaChartBar,
@@ -47,7 +48,8 @@ const formatCOP = (value) => {
 const PAYMENT_COLORS = {
     EFECTIVO: '#10b981',      // Esmeralda
     TARJETA: '#3b82f6',       // Azul
-    TRANSFERENCIA: '#8b5cf6'  // Púrpura
+    TRANSFERENCIA: '#8b5cf6', // Púrpura
+    OTROS: '#f59e0b'          // Ámbar
 };
 
 const ReportsPage = () => {
@@ -142,15 +144,26 @@ const ReportsPage = () => {
 
     // Analytics: Payment Distribution for Donut PieChart
     const paymentDistributionData = useMemo(() => {
-        const counts = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0 };
+        const counts = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0, OTROS: 0 };
         filteredSales.forEach(s => {
-            const method = s.paymentMethod || 'EFECTIVO';
-            counts[method] = (counts[method] || 0) + Number(s.totalAmount || 0);
+            if (s.paymentMethod === 'MIXTO') {
+                counts.EFECTIVO += Number(s.cashAmount || 0);
+                counts.TARJETA += Number(s.cardAmount || 0);
+                counts.TRANSFERENCIA += Number(s.transferAmount || 0);
+                counts.OTROS += Number(s.otherAmount || 0);
+            } else {
+                const method = s.paymentMethod || 'EFECTIVO';
+                if (counts[method] !== undefined) {
+                    counts[method] += Number(s.totalAmount || 0);
+                } else {
+                    counts.OTROS += Number(s.totalAmount || 0);
+                }
+            }
         });
         return Object.keys(counts)
             .filter(key => counts[key] > 0)
             .map(key => ({
-                name: key === 'EFECTIVO' ? 'Efectivo' : key === 'TARJETA' ? 'Tarjeta' : 'Transferencia',
+                name: key === 'EFECTIVO' ? 'Efectivo' : key === 'TARJETA' ? 'Tarjeta' : key === 'TRANSFERENCIA' ? 'Transferencia' : 'Otros',
                 rawKey: key,
                 value: counts[key]
             }));
@@ -183,18 +196,44 @@ const ReportsPage = () => {
             return;
         }
 
-        const headers = ['ID Venta', 'Factura DIAN', 'Estado DIAN', 'Fecha', 'Cliente', 'Documento', 'Medio de Pago', 'Total Facturado (COP)', 'CUDE'];
-        const rows = filteredSales.map(s => [
-            s.id,
-            `"${s.invoice?.invoiceNumber || 'N/A'}"`,
-            `"${s.invoice?.factusStatus || 'LOCAL_POS'}"`,
-            `"${new Date(s.saleDate).toLocaleString('es-CO')}"`,
-            `"${s.customerName || 'Cliente General'}"`,
-            `"${s.customerDoc || 'N/A'}"`,
-            s.paymentMethod || 'EFECTIVO',
-            s.totalAmount,
-            `"${s.invoice?.cude || ''}"`
-        ]);
+        const headers = [
+            'ID Venta',
+            'Factura DIAN',
+            'Estado DIAN',
+            'Fecha',
+            'Cliente',
+            'Documento',
+            'Medio de Pago',
+            'Efectivo (COP)',
+            'Tarjeta (COP)',
+            'Transferencia (COP)',
+            'Otros (COP)',
+            'Total Facturado (COP)',
+            'CUDE'
+        ];
+        const rows = filteredSales.map(s => {
+            const isSplit = s.paymentMethod === 'MIXTO';
+            const ef = isSplit ? Number(s.cashAmount || 0) : (s.paymentMethod === 'EFECTIVO' ? Number(s.totalAmount || 0) : 0);
+            const tarj = isSplit ? Number(s.cardAmount || 0) : (s.paymentMethod === 'TARJETA' ? Number(s.totalAmount || 0) : 0);
+            const trans = isSplit ? Number(s.transferAmount || 0) : (s.paymentMethod === 'TRANSFERENCIA' ? Number(s.totalAmount || 0) : 0);
+            const otr = isSplit ? Number(s.otherAmount || 0) : (s.paymentMethod === 'OTROS' ? Number(s.totalAmount || 0) : 0);
+
+            return [
+                s.id,
+                `"${s.invoice?.invoiceNumber || 'N/A'}"`,
+                `"${s.invoice?.factusStatus || 'LOCAL_POS'}"`,
+                `"${new Date(s.saleDate).toLocaleString('es-CO')}"`,
+                `"${s.customerName || 'Cliente General'}"`,
+                `"${s.customerDoc || 'N/A'}"`,
+                s.paymentMethod || 'EFECTIVO',
+                ef,
+                tarj,
+                trans,
+                otr,
+                s.totalAmount,
+                `"${s.invoice?.cude || ''}"`
+            ];
+        });
 
         const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' +
             [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -225,7 +264,7 @@ const ReportsPage = () => {
         }
     };
 
-    const renderPaymentBadge = (method) => {
+    const renderPaymentBadge = (method, sale) => {
         switch (method) {
             case 'TARJETA':
                 return (
@@ -237,6 +276,21 @@ const ReportsPage = () => {
                 return (
                     <span className="pay-badge transfer">
                         <FaMobileAlt /> Transferencia
+                    </span>
+                );
+            case 'MIXTO':
+                return (
+                    <span
+                        className="pay-badge split"
+                        title={sale ? `Efectivo: ${formatCOP(sale.cashAmount)} | Tarjeta: ${formatCOP(sale.cardAmount)} | Transf: ${formatCOP(sale.transferAmount)}` : 'Pago Mixto'}
+                    >
+                        <FaCoins /> Mixto
+                    </span>
+                );
+            case 'OTROS':
+                return (
+                    <span className="pay-badge other">
+                        Otros
                     </span>
                 );
             default:
@@ -558,7 +612,7 @@ const ReportsPage = () => {
                                             {renderDianBadge(sale.invoice)}
                                         </td>
                                         <td>
-                                            {renderPaymentBadge(sale.paymentMethod)}
+                                            {renderPaymentBadge(sale.paymentMethod, sale)}
                                         </td>
                                         <td className="text-right amount-cell">
                                             {formatCOP(sale.totalAmount)}

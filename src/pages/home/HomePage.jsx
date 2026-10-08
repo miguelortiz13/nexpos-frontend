@@ -8,7 +8,9 @@ import {
   FaArrowRight,
   FaStore,
   FaShieldAlt,
-  FaBarcode
+  FaBarcode,
+  FaMoneyBillWave,
+  FaAddressCard
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
@@ -58,7 +60,37 @@ function HomePage() {
               <div className="shortcut-content">
                 <div className="shortcut-tag">OPERACIÓN DIARIA</div>
                 <h3>Punto de Venta (POS)</h3>
-                <p>Cobro ágil con lector de código de barras, cálculo de cambio y facturas PDF.</p>
+                <p>Cobro ágil con lector de código de barras, pago mixto y tiquetes térmicos.</p>
+              </div>
+              <div className="shortcut-arrow">
+                <FaArrowRight />
+              </div>
+            </Link>
+
+            {/* Cash Shifts & Arqueos */}
+            <Link to="/caja" className="shortcut-card">
+              <div className="shortcut-icon-box cash-icon-box">
+                <FaMoneyBillWave />
+              </div>
+              <div className="shortcut-content">
+                <div className="shortcut-tag">ARQUEO Y CUADRE</div>
+                <h3>Control de Caja</h3>
+                <p>Apertura de turno, movimientos de caja y cierre ciego con Tiquete Z.</p>
+              </div>
+              <div className="shortcut-arrow">
+                <FaArrowRight />
+              </div>
+            </Link>
+
+            {/* Customers & DIAN */}
+            <Link to="/customers" className="shortcut-card">
+              <div className="shortcut-icon-box customer-icon-box">
+                <FaAddressCard />
+              </div>
+              <div className="shortcut-content">
+                <div className="shortcut-tag">FACTURACIÓN ELECTRÓNICA</div>
+                <h3>Directorio de Clientes</h3>
+                <p>Gestión de adquirentes (Cédula, NIT) para facturación electrónica DIAN.</p>
               </div>
               <div className="shortcut-arrow">
                 <FaArrowRight />

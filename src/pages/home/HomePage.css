@@ -139,6 +139,18 @@
   box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
 }
 
+.cash-icon-box {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.customer-icon-box {
+  background: #fdf4ff;
+  color: #9333ea;
+  border: 1px solid #f0abfc;
+}
+
 .shortcut-tag {
   font-size: 0.68rem;
   font-weight: 800;
