@@ -205,7 +205,7 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
 
     // Impresión térmica directa
     const handlePrint = () => {
-        if (config.autoDrawer && sale.paymentMethod === 'EFECTIVO') {
+        if (config.autoDrawer && (sale.paymentMethod === 'EFECTIVO' || (sale.paymentMethod === 'MIXTO' && Number(sale.cashAmount) > 0))) {
             handleKickDrawer();
         }
         window.print();
@@ -423,7 +423,7 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
 
                             <div className="t-row">
                                 <span>Medio de Pago:</span>
-                                <strong>{sale.paymentMethod || 'EFECTIVO'}</strong>
+                                <strong>{sale.paymentMethod === 'MIXTO' ? 'PAGO MIXTO' : (sale.paymentMethod || 'EFECTIVO')}</strong>
                             </div>
 
                             {sale.paymentMethod === 'EFECTIVO' && (
@@ -436,6 +436,50 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                                         <span>CAMBIO / VUELTO:</span>
                                         <span>{formatCOP(changeAmount)}</span>
                                     </div>
+                                </>
+                            )}
+
+                            {sale.paymentMethod === 'MIXTO' && (
+                                <>
+                                    <div className="t-row bold" style={{ fontSize: '10px', marginTop: '4px', textTransform: 'uppercase' }}>
+                                        <span>DESGLOSE PAGO MIXTO:</span>
+                                    </div>
+                                    {Number(sale.cashAmount) > 0 && (
+                                        <div className="t-row sub-tax">
+                                            <span>• Efectivo:</span>
+                                            <span>{formatCOP(sale.cashAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(sale.cardAmount) > 0 && (
+                                        <div className="t-row sub-tax">
+                                            <span>• Tarjeta / Datáfono:</span>
+                                            <span>{formatCOP(sale.cardAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(sale.transferAmount) > 0 && (
+                                        <div className="t-row sub-tax">
+                                            <span>• Transferencia / QR:</span>
+                                            <span>{formatCOP(sale.transferAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(sale.otherAmount) > 0 && (
+                                        <div className="t-row sub-tax">
+                                            <span>• Otros:</span>
+                                            <span>{formatCOP(sale.otherAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(sale.amountPaid) > totalAmount && (
+                                        <div className="t-row" style={{ marginTop: '2px' }}>
+                                            <span>Total Entregado:</span>
+                                            <span>{formatCOP(sale.amountPaid)}</span>
+                                        </div>
+                                    )}
+                                    {Number(changeAmount) > 0 && (
+                                        <div className="t-row bold">
+                                            <span>CAMBIO EFECTIVO:</span>
+                                            <span>{formatCOP(changeAmount)}</span>
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>

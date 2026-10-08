@@ -22,6 +22,7 @@ import {
 import { toast, ToastContainer } from 'react-toastify';
 import cashShiftService from '../../api/cashShiftService';
 import { useAuth } from '../../context/AuthContext';
+import ShiftReceiptModal from '../../components/common/ShiftReceiptModal';
 import 'react-toastify/dist/ReactToastify.css';
 import './CashShiftPage.css';
 
@@ -70,6 +71,11 @@ const CashShiftPage = () => {
     const [closeNotes, setCloseNotes] = useState('');
 
     const [selectedHistoricalShift, setSelectedHistoricalShift] = useState(null);
+
+    // Modal de Tiquete Térmico de Cierre Z / Arqueo X
+    const [showThermalReceipt, setShowThermalReceipt] = useState(false);
+    const [thermalReceiptShift, setThermalReceiptShift] = useState(null);
+    const [isReceiptZ, setIsReceiptZ] = useState(true);
 
     useEffect(() => {
         fetchShiftData();
@@ -156,7 +162,7 @@ const CashShiftPage = () => {
         }
 
         try {
-            await cashShiftService.closeShift(activeShift.id, {
+            const closedSummary = await cashShiftService.closeShift(activeShift.id, {
                 actualCashAmount: actual,
                 closeNotes: closeNotes
             });
@@ -164,11 +170,38 @@ const CashShiftPage = () => {
             setShowCloseModal(false);
             setCountedCash('');
             setCloseNotes('');
+
+            // Abrir automáticamente el tiquete térmico oficial Z para impresión
+            setThermalReceiptShift(closedSummary);
+            setIsReceiptZ(true);
+            setShowThermalReceipt(true);
+
             fetchShiftData();
             setActiveTab('history');
         } catch (error) {
             toast.error(error.response?.data?.message || 'Error al cerrar el turno');
         }
+    };
+
+    const handleOpenArqueoX = () => {
+        if (!summary) {
+            toast.warn('No hay métricas disponibles para el arqueo.');
+            return;
+        }
+        setThermalReceiptShift(summary);
+        setIsReceiptZ(false);
+        setShowThermalReceipt(true);
+    };
+
+    const handlePrintHistoricalZ = async (shift) => {
+        try {
+            const detailed = await cashShiftService.getShiftSummary(shift.id);
+            setThermalReceiptShift(detailed);
+        } catch {
+            setThermalReceiptShift(shift);
+        }
+        setIsReceiptZ(true);
+        setShowThermalReceipt(true);
     };
 
     const handleViewHistoricalShift = (shift) => {
@@ -275,7 +308,7 @@ const CashShiftPage = () => {
                                     </button>
                                     <button
                                         className="btn-action-cash arqueo"
-                                        onClick={() => setShowArqueoModal(true)}
+                                        onClick={handleOpenArqueoX}
                                     >
                                         <FaReceipt /> Arqueo (Reporte X)
                                     </button>
@@ -486,13 +519,22 @@ const CashShiftPage = () => {
                                             ) : '-'}
                                         </td>
                                         <td>
-                                            <button
-                                                className="btn-view-shift"
-                                                onClick={() => handleViewHistoricalShift(s)}
-                                                title="Ver detalle del turno"
-                                            >
-                                                <FaReceipt /> Detalle
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button
+                                                    className="btn-print-shift-z"
+                                                    onClick={() => handlePrintHistoricalZ(s)}
+                                                    title="Imprimir Tiquete Térmico de Cierre (Reporte Z)"
+                                                >
+                                                    <FaPrint /> Tiquete Z
+                                                </button>
+                                                <button
+                                                    className="btn-view-shift"
+                                                    onClick={() => handleViewHistoricalShift(s)}
+                                                    title="Ver detalle del turno"
+                                                >
+                                                    <FaReceipt /> Detalle
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -854,13 +896,26 @@ const CashShiftPage = () => {
                             <button type="button" className="btn-modal-cancel" onClick={() => setSelectedHistoricalShift(null)}>
                                 Cerrar
                             </button>
-                            <button type="button" className="btn-modal-submit" onClick={() => window.print()}>
-                                <FaPrint /> Imprimir Comprobante
+                            <button
+                                type="button"
+                                className="btn-modal-submit"
+                                onClick={() => handlePrintHistoricalZ(selectedHistoricalShift)}
+                                title="Imprimir tiquete de cierre en impresora térmica (58mm/80mm)"
+                            >
+                                <FaPrint /> Tiquete Térmico
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Modal de Tiquete Térmico de Cierre Z y Arqueo X */}
+            <ShiftReceiptModal
+                shift={thermalReceiptShift}
+                isOpen={showThermalReceipt}
+                onClose={() => setShowThermalReceipt(false)}
+                isReportZ={isReceiptZ}
+            />
         </div>
     );
 };

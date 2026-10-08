@@ -20,7 +20,8 @@ import {
     FaList,
     FaPrint,
     FaUserPlus,
-    FaUserCheck
+    FaUserCheck,
+    FaCoins
 } from 'react-icons/fa';
 import { toast, ToastContainer } from 'react-toastify';
 import BarcodeScanner from '../../components/common/BarcodeScanner';
@@ -57,6 +58,11 @@ const SalesPage = () => {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('EFECTIVO');
     const [amountPaid, setAmountPaid] = useState('');
+    const [splitCash, setSplitCash] = useState('');
+    const [splitCard, setSplitCard] = useState('');
+    const [splitTransfer, setSplitTransfer] = useState('');
+    const [splitOther, setSplitOther] = useState('');
+    const [splitCashTendered, setSplitCashTendered] = useState('');
     const [customerId, setCustomerId] = useState(1);
     const [customerName, setCustomerName] = useState('Consumidor Final');
     const [customerDoc, setCustomerDoc] = useState('222222222222');
@@ -213,9 +219,49 @@ const SalesPage = () => {
         const total = calculateTotal();
         setPaymentMethod('EFECTIVO');
         setAmountPaid(total.toString());
+        setSplitCash('');
+        setSplitCard('');
+        setSplitTransfer('');
+        setSplitOther('');
+        setSplitCashTendered('');
         setCustomerName('Consumidor Final');
         setCustomerDoc('222222222222');
         setShowPaymentModal(true);
+    };
+
+    const handleSelectPaymentMethod = (method) => {
+        setPaymentMethod(method);
+        const total = calculateTotal();
+        if (method === 'MIXTO') {
+            setSplitCash('');
+            setSplitCard('');
+            setSplitTransfer('');
+            setSplitOther('');
+            setSplitCashTendered('');
+        } else {
+            setAmountPaid(total.toString());
+        }
+    };
+
+    const handleAllocateRemaining = (targetField) => {
+        const total = calculateTotal();
+        const currentCash = targetField === 'cash' ? 0 : (Number(splitCash) || 0);
+        const currentCard = targetField === 'card' ? 0 : (Number(splitCard) || 0);
+        const currentTransfer = targetField === 'transfer' ? 0 : (Number(splitTransfer) || 0);
+        const currentOther = targetField === 'other' ? 0 : (Number(splitOther) || 0);
+
+        const currentOtherSum = currentCash + currentCard + currentTransfer + currentOther;
+        const remaining = Math.max(0, total - currentOtherSum);
+
+        if (targetField === 'cash') {
+            setSplitCash(remaining > 0 ? remaining.toString() : '');
+        } else if (targetField === 'card') {
+            setSplitCard(remaining > 0 ? remaining.toString() : '');
+        } else if (targetField === 'transfer') {
+            setSplitTransfer(remaining > 0 ? remaining.toString() : '');
+        } else if (targetField === 'other') {
+            setSplitOther(remaining > 0 ? remaining.toString() : '');
+        }
     };
 
     const handleCustomerSearch = async (query) => {
@@ -253,14 +299,40 @@ const SalesPage = () => {
     const handleConfirmPayment = async (e) => {
         e.preventDefault();
         const total = calculateTotal();
-        const paid = Number(amountPaid) || total;
 
-        if (paymentMethod === 'EFECTIVO' && paid < total) {
-            toast.error(`El monto recibido (${formatCOP(paid)}) no puede ser menor al total (${formatCOP(total)})`);
-            return;
+        if (paymentMethod === 'EFECTIVO') {
+            const paid = Number(amountPaid) || total;
+            if (paid < total) {
+                toast.error(`El monto recibido (${formatCOP(paid)}) no puede ser menor al total (${formatCOP(total)})`);
+                return;
+            }
+        }
+
+        const mixedCashPortion = Number(splitCash) || 0;
+        const mixedCardPortion = Number(splitCard) || 0;
+        const mixedTransferPortion = Number(splitTransfer) || 0;
+        const mixedOtherPortion = Number(splitOther) || 0;
+        const mixedTotalCovered = mixedCashPortion + mixedCardPortion + mixedTransferPortion + mixedOtherPortion;
+        const mixedRemaining = Math.max(0, total - mixedTotalCovered);
+        const mixedTendered = Number(splitCashTendered) > 0 ? Number(splitCashTendered) : mixedCashPortion;
+
+        if (paymentMethod === 'MIXTO') {
+            if (mixedTotalCovered < total) {
+                toast.error(`Los medios combinados (${formatCOP(mixedTotalCovered)}) no cubren el total de la venta (${formatCOP(total)}). Falta ${formatCOP(mixedRemaining)}`);
+                return;
+            }
+            if (Number(splitCashTendered) > 0 && Number(splitCashTendered) < mixedCashPortion) {
+                toast.error(`El billete recibido en efectivo (${formatCOP(splitCashTendered)}) no puede ser menor a la porción en efectivo (${formatCOP(mixedCashPortion)})`);
+                return;
+            }
         }
 
         setLoading(true);
+
+        const paid = Number(amountPaid) || total;
+        const totalPaidTendered = paymentMethod === 'MIXTO'
+            ? (mixedCardPortion + mixedTransferPortion + mixedOtherPortion + mixedTendered)
+            : (paymentMethod === 'EFECTIVO' ? paid : total);
 
         const saleRequest = {
             customerId: customerId || 1,
@@ -268,7 +340,11 @@ const SalesPage = () => {
             customerDoc: customerDoc.trim() || '222222222222',
             customerEmail: customerEmail?.trim() || null,
             paymentMethod,
-            amountPaid: paymentMethod === 'EFECTIVO' ? paid : total,
+            amountPaid: totalPaidTendered,
+            cashAmount: paymentMethod === 'MIXTO' ? mixedCashPortion : (paymentMethod === 'EFECTIVO' ? total : 0),
+            cardAmount: paymentMethod === 'MIXTO' ? mixedCardPortion : (paymentMethod === 'TARJETA' ? total : 0),
+            transferAmount: paymentMethod === 'MIXTO' ? mixedTransferPortion : (paymentMethod === 'TRANSFERENCIA' ? total : 0),
+            otherAmount: paymentMethod === 'MIXTO' ? mixedOtherPortion : 0,
             items: cart.map(item => ({
                 productId: item.id,
                 quantity: item.quantity
@@ -324,6 +400,15 @@ const SalesPage = () => {
     const total = calculateTotal();
     const paidNumber = Number(amountPaid) || 0;
     const change = Math.max(0, paidNumber - total);
+
+    const mixedCashPortion = Number(splitCash) || 0;
+    const mixedCardPortion = Number(splitCard) || 0;
+    const mixedTransferPortion = Number(splitTransfer) || 0;
+    const mixedOtherPortion = Number(splitOther) || 0;
+    const mixedTotalCovered = mixedCashPortion + mixedCardPortion + mixedTransferPortion + mixedOtherPortion;
+    const mixedRemaining = Math.max(0, total - mixedTotalCovered);
+    const mixedTendered = Number(splitCashTendered) > 0 ? Number(splitCashTendered) : mixedCashPortion;
+    const mixedChange = Math.max(0, mixedTendered - mixedCashPortion);
 
     return (
         <div className="pos-layout">
@@ -751,10 +836,7 @@ const SalesPage = () => {
                                     <button
                                         type="button"
                                         className={`btn-method-choice ${paymentMethod === 'EFECTIVO' ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setPaymentMethod('EFECTIVO');
-                                            setAmountPaid(total.toString());
-                                        }}
+                                        onClick={() => handleSelectPaymentMethod('EFECTIVO')}
                                     >
                                         <FaMoneyBillWave />
                                         <span>Efectivo</span>
@@ -762,10 +844,7 @@ const SalesPage = () => {
                                     <button
                                         type="button"
                                         className={`btn-method-choice ${paymentMethod === 'TARJETA' ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setPaymentMethod('TARJETA');
-                                            setAmountPaid(total.toString());
-                                        }}
+                                        onClick={() => handleSelectPaymentMethod('TARJETA')}
                                     >
                                         <FaCreditCard />
                                         <span>Tarjeta</span>
@@ -773,13 +852,18 @@ const SalesPage = () => {
                                     <button
                                         type="button"
                                         className={`btn-method-choice ${paymentMethod === 'TRANSFERENCIA' ? 'active' : ''}`}
-                                        onClick={() => {
-                                            setPaymentMethod('TRANSFERENCIA');
-                                            setAmountPaid(total.toString());
-                                        }}
+                                        onClick={() => handleSelectPaymentMethod('TRANSFERENCIA')}
                                     >
                                         <FaMobileAlt />
-                                        <span>Transferencia / Nequi</span>
+                                        <span>Transferencia</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`btn-method-choice ${paymentMethod === 'MIXTO' ? 'active' : ''}`}
+                                        onClick={() => handleSelectPaymentMethod('MIXTO')}
+                                    >
+                                        <FaCoins />
+                                        <span>Pago Mixto</span>
                                     </button>
                                 </div>
                             </div>
@@ -831,6 +915,151 @@ const SalesPage = () => {
                                 </div>
                             )}
 
+                            {/* Interfaz de Pago Mixto / Combinado */}
+                            {paymentMethod === 'MIXTO' && (
+                                <div className="split-payment-card">
+                                    <div className="split-header-info">
+                                        <span className="split-title">Distribución por Medios</span>
+                                        <span className={`split-status-tag ${mixedRemaining === 0 ? 'complete' : 'pending'}`}>
+                                            {mixedRemaining === 0 ? '✓ Total Cubierto' : `Falta: ${formatCOP(mixedRemaining)}`}
+                                        </span>
+                                    </div>
+
+                                    {/* 1. Tarjeta */}
+                                    <div className="split-input-row">
+                                        <div className="split-input-label">
+                                            <FaCreditCard className="split-icon card" />
+                                            <span>Tarjeta / Datáfono:</span>
+                                        </div>
+                                        <div className="split-input-control">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="500"
+                                                placeholder="$0"
+                                                value={splitCard}
+                                                onChange={e => setSplitCard(e.target.value)}
+                                                className="split-num-input"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-split-shortcut"
+                                                onClick={() => handleAllocateRemaining('card')}
+                                                title="Asignar el saldo restante a Tarjeta"
+                                            >
+                                                Restante
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Transferencia */}
+                                    <div className="split-input-row">
+                                        <div className="split-input-label">
+                                            <FaMobileAlt className="split-icon transfer" />
+                                            <span>Transferencia (Nequi/Davi):</span>
+                                        </div>
+                                        <div className="split-input-control">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="500"
+                                                placeholder="$0"
+                                                value={splitTransfer}
+                                                onChange={e => setSplitTransfer(e.target.value)}
+                                                className="split-num-input"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-split-shortcut"
+                                                onClick={() => handleAllocateRemaining('transfer')}
+                                                title="Asignar el saldo restante a Transferencia"
+                                            >
+                                                Restante
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. Efectivo a abonar */}
+                                    <div className="split-input-row">
+                                        <div className="split-input-label">
+                                            <FaMoneyBillWave className="split-icon cash" />
+                                            <span>Efectivo a abonar:</span>
+                                        </div>
+                                        <div className="split-input-control">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="500"
+                                                placeholder="$0"
+                                                value={splitCash}
+                                                onChange={e => setSplitCash(e.target.value)}
+                                                className="split-num-input"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-split-shortcut"
+                                                onClick={() => handleAllocateRemaining('cash')}
+                                                title="Asignar el saldo restante a Efectivo"
+                                            >
+                                                Restante
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 4. Billete recibido en efectivo si el cliente requiere cambio */}
+                                    {mixedCashPortion > 0 && (
+                                        <div className="split-tendered-row">
+                                            <div className="split-input-label sub">
+                                                <span>Billete recibido en efectivo (para vuelto):</span>
+                                            </div>
+                                            <div className="split-tendered-inputs">
+                                                <input
+                                                    type="number"
+                                                    min={mixedCashPortion}
+                                                    step="500"
+                                                    placeholder={`Ej: ${formatCOP(mixedCashPortion)}`}
+                                                    value={splitCashTendered}
+                                                    onChange={e => setSplitCashTendered(e.target.value)}
+                                                    className="split-tendered-input"
+                                                />
+                                                {mixedChange > 0 && (
+                                                    <span className="split-change-badge">
+                                                        Cambio: {formatCOP(mixedChange)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Resumen del Pago Mixto */}
+                                    <div className="split-summary-bar">
+                                        <div className="split-summary-item">
+                                            <span>Total:</span>
+                                            <strong>{formatCOP(total)}</strong>
+                                        </div>
+                                        <div className="split-summary-item">
+                                            <span>Cubierto:</span>
+                                            <strong style={{ color: mixedTotalCovered >= total ? '#059669' : '#d97706' }}>
+                                                {formatCOP(mixedTotalCovered)}
+                                            </strong>
+                                        </div>
+                                        {mixedRemaining > 0 ? (
+                                            <div className="split-summary-item missing">
+                                                <span>Faltante:</span>
+                                                <strong style={{ color: '#dc2626' }}>{formatCOP(mixedRemaining)}</strong>
+                                            </div>
+                                        ) : (
+                                            mixedChange > 0 && (
+                                                <div className="split-summary-item change">
+                                                    <span>Cambio:</span>
+                                                    <strong style={{ color: '#2563eb' }}>{formatCOP(mixedChange)}</strong>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="modal-footer-actions">
                                 <button
                                     type="button"
@@ -843,7 +1072,11 @@ const SalesPage = () => {
                                 <button
                                     type="submit"
                                     className="btn-modal-confirm"
-                                    disabled={loading || (paymentMethod === 'EFECTIVO' && paidNumber < total)}
+                                    disabled={
+                                        loading ||
+                                        (paymentMethod === 'EFECTIVO' && paidNumber < total) ||
+                                        (paymentMethod === 'MIXTO' && mixedTotalCovered < total)
+                                    }
                                 >
                                     {loading ? 'Procesando Venta...' : `Confirmar Cobro • ${formatCOP(total)}`}
                                 </button>
@@ -874,13 +1107,38 @@ const SalesPage = () => {
                             </div>
                             <div className="ticket-line">
                                 <span>Medio de Pago:</span>
-                                <strong>{completedSale.paymentMethod}</strong>
+                                <strong>{completedSale.paymentMethod === 'MIXTO' ? 'PAGO MIXTO' : completedSale.paymentMethod}</strong>
                             </div>
+
+                            {/* Desglose si fue Pago Mixto */}
+                            {completedSale.paymentMethod === 'MIXTO' && (
+                                <div className="ticket-split-recap">
+                                    {Number(completedSale.cashAmount) > 0 && (
+                                        <div className="ticket-line sub">
+                                            <span>• Efectivo:</span>
+                                            <span>{formatCOP(completedSale.cashAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(completedSale.cardAmount) > 0 && (
+                                        <div className="ticket-line sub">
+                                            <span>• Tarjeta:</span>
+                                            <span>{formatCOP(completedSale.cardAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(completedSale.transferAmount) > 0 && (
+                                        <div className="ticket-line sub">
+                                            <span>• Transferencia:</span>
+                                            <span>{formatCOP(completedSale.transferAmount)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="ticket-line total">
                                 <span>Total Cobrado:</span>
                                 <strong className="ticket-total">{formatCOP(completedSale.totalAmount)}</strong>
                             </div>
-                            {completedSale.paymentMethod === 'EFECTIVO' && (
+                            {Number(completedSale.changeAmount) > 0 && (
                                 <div className="ticket-line change">
                                     <span>Cambio Entregado:</span>
                                     <strong>{formatCOP(completedSale.changeAmount)}</strong>

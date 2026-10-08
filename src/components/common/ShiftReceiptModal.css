@@ -1,0 +1,361 @@
+/* ==========================================================================
+   ShiftReceiptModal.css - Thermal Z-Report & X-Audit Receipt Printing Styles
+   ========================================================================== */
+
+.shift-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2500;
+    padding: 1rem;
+}
+
+.shift-modal-container {
+    background: #ffffff;
+    border-radius: var(--radius-xl, 16px);
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    animation: modalSlideUp 0.25s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.shift-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.1rem 1.4rem;
+    background: #0f172a;
+    color: #ffffff;
+}
+
+.shift-modal-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.shift-header-icon {
+    color: #10b981;
+    font-size: 1.15rem;
+}
+
+.btn-close-shift-modal {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 1.15rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.btn-close-shift-modal:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.shift-controls-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.4rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.paper-width-selector {
+    display: flex;
+    background: #e2e8f0;
+    padding: 3px;
+    border-radius: 8px;
+    gap: 2px;
+}
+
+.btn-width-toggle {
+    border: none;
+    background: transparent;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #475569;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-width-toggle.active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.shift-badge-indicator {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.badge-z-closed {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #059669;
+    background: #ecfdf5;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid #a7f3d0;
+}
+
+.badge-x-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #2563eb;
+    background: #eff6ff;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid #bfdbfe;
+}
+
+.shift-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    background: #f1f5f9;
+    display: flex;
+    justify-content: center;
+}
+
+/* ==========================================================================
+   Thermal Paper Sheet (Screen Preview & Print Target)
+   ========================================================================== */
+
+.shift-paper-sheet {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #cbd5e1;
+    color: #000000;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.35;
+    padding: 14px 12px;
+    box-sizing: border-box;
+    transition: width 0.2s ease;
+}
+
+.shift-paper-sheet.width-80mm {
+    width: 310px;
+}
+
+.shift-paper-sheet.width-58mm {
+    width: 220px;
+    font-size: 9.5px;
+    padding: 10px 8px;
+}
+
+.shift-receipt-title-box {
+    text-align: center;
+    margin: 8px 0;
+    padding: 4px 0;
+    border-top: 2px solid #000000;
+    border-bottom: 2px solid #000000;
+}
+
+.shift-main-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.shift-sub-title {
+    font-size: 9px;
+    font-weight: 700;
+    color: #333333;
+    margin-top: 2px;
+}
+
+.shift-divider-line {
+    border-bottom: 1px dashed #000000;
+    margin: 6px 0;
+}
+
+.shift-double-line {
+    border-bottom: 2px solid #000000;
+    margin: 8px 0;
+}
+
+.shift-section-title {
+    font-size: 10px;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 0.5px;
+    margin: 4px 0 6px 0;
+    text-transform: uppercase;
+}
+
+.shift-movements-list {
+    margin: 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.movement-ticket-row {
+    font-size: 9.5px;
+    border-bottom: 1px dotted #ccc;
+    padding-bottom: 3px;
+}
+
+.mov-row-top {
+    display: flex;
+    justify-content: space-between;
+}
+
+.mov-row-desc {
+    color: #444;
+    font-size: 8.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shift-notes-box {
+    font-size: 9px;
+    background: #f8fafc;
+    border: 1px dashed #94a3b8;
+    padding: 5px 6px;
+    margin: 6px 0;
+    font-style: italic;
+}
+
+.shift-signatures-block {
+    margin: 20px 0 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 0 8px;
+}
+
+.sig-line-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.sig-line {
+    width: 85%;
+    border-bottom: 1px solid #000000;
+}
+
+.sig-line-wrapper span {
+    font-size: 9px;
+    font-weight: 600;
+}
+
+.shift-footer-text {
+    font-size: 8.5px;
+    text-align: center;
+    color: #444444;
+    margin-top: 10px;
+    line-height: 1.3;
+}
+
+/* Modal Footer Actions */
+.shift-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.4rem;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btn-close-secondary {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 0.65rem 1.1rem;
+    border-radius: var(--radius-md, 8px);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-close-secondary:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+/* ==========================================================================
+   ISOLATED MEDIA PRINT RULES (Thermal Printing)
+   ========================================================================== */
+@media print {
+    @page {
+        margin: 0;
+        size: auto;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    #shift-receipt-printable,
+    #shift-receipt-printable * {
+        visibility: visible !important;
+    }
+
+    #shift-receipt-printable {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 8px !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    .shift-modal-overlay,
+    .shift-modal-container,
+    .shift-modal-header,
+    .shift-controls-toolbar,
+    .shift-modal-footer {
+        background: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+}
