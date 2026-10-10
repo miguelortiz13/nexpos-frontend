@@ -18,7 +18,8 @@ import {
     FaCheckCircle,
     FaExternalLinkAlt,
     FaBan,
-    FaUndoAlt
+    FaUndoAlt,
+    FaHandHoldingUsd
 } from 'react-icons/fa';
 import ThermalReceiptModal from '../../components/common/ThermalReceiptModal';
 import CreditNoteModal from '../../components/common/CreditNoteModal';
@@ -53,7 +54,8 @@ const PAYMENT_COLORS = {
     EFECTIVO: '#10b981',      // Esmeralda
     TARJETA: '#3b82f6',       // Azul
     TRANSFERENCIA: '#8b5cf6', // Púrpura
-    OTROS: '#f59e0b'          // Ámbar
+    CREDITO: '#f59e0b',       // Ámbar / Crédito
+    OTROS: '#64748b'          // Slate
 };
 
 const ReportsPage = () => {
@@ -168,13 +170,16 @@ const ReportsPage = () => {
 
     // Analytics: Payment Distribution for Donut PieChart (Net Completed Sales)
     const paymentDistributionData = useMemo(() => {
-        const counts = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0, OTROS: 0 };
+        const counts = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0, CREDITO: 0, OTROS: 0 };
         activeSales.forEach(s => {
             if (s.paymentMethod === 'MIXTO') {
                 counts.EFECTIVO += Number(s.cashAmount || 0);
                 counts.TARJETA += Number(s.cardAmount || 0);
                 counts.TRANSFERENCIA += Number(s.transferAmount || 0);
+                counts.CREDITO += Number(s.creditAmount || 0);
                 counts.OTROS += Number(s.otherAmount || 0);
+            } else if (s.paymentMethod === 'CREDITO') {
+                counts.CREDITO += Number(s.totalAmount || 0);
             } else {
                 const method = s.paymentMethod || 'EFECTIVO';
                 if (counts[method] !== undefined) {
@@ -187,7 +192,7 @@ const ReportsPage = () => {
         return Object.keys(counts)
             .filter(key => counts[key] > 0)
             .map(key => ({
-                name: key === 'EFECTIVO' ? 'Efectivo' : key === 'TARJETA' ? 'Tarjeta' : key === 'TRANSFERENCIA' ? 'Transferencia' : 'Otros',
+                name: key === 'EFECTIVO' ? 'Efectivo' : key === 'TARJETA' ? 'Tarjeta' : key === 'TRANSFERENCIA' ? 'Transferencia' : key === 'CREDITO' ? 'Crédito' : 'Otros',
                 rawKey: key,
                 value: counts[key]
             }));
@@ -234,6 +239,7 @@ const ReportsPage = () => {
             'Efectivo (COP)',
             'Tarjeta (COP)',
             'Transferencia (COP)',
+            'Crédito / Fiado (COP)',
             'Otros (COP)',
             'Total Facturado (COP)',
             'CUDE'
@@ -243,6 +249,7 @@ const ReportsPage = () => {
             const ef = isSplit ? Number(s.cashAmount || 0) : (s.paymentMethod === 'EFECTIVO' ? Number(s.totalAmount || 0) : 0);
             const tarj = isSplit ? Number(s.cardAmount || 0) : (s.paymentMethod === 'TARJETA' ? Number(s.totalAmount || 0) : 0);
             const trans = isSplit ? Number(s.transferAmount || 0) : (s.paymentMethod === 'TRANSFERENCIA' ? Number(s.totalAmount || 0) : 0);
+            const cred = isSplit ? Number(s.creditAmount || 0) : (s.paymentMethod === 'CREDITO' ? Number(s.totalAmount || 0) : 0);
             const otr = isSplit ? Number(s.otherAmount || 0) : (s.paymentMethod === 'OTROS' ? Number(s.totalAmount || 0) : 0);
 
             return [
@@ -259,6 +266,7 @@ const ReportsPage = () => {
                 ef,
                 tarj,
                 trans,
+                cred,
                 otr,
                 s.totalAmount,
                 `"${s.invoice?.cude || ''}"`
@@ -308,11 +316,20 @@ const ReportsPage = () => {
                         <FaMobileAlt /> Transferencia
                     </span>
                 );
+            case 'CREDITO':
+                return (
+                    <span
+                        className="pay-badge credit"
+                        title={sale ? `Financiado en Cartera: ${formatCOP(sale.creditAmount || sale.totalAmount)} | Estado: ${sale.paymentStatus || 'PENDIENTE'}` : 'Crédito / Fiado'}
+                    >
+                        <FaHandHoldingUsd /> Crédito
+                    </span>
+                );
             case 'MIXTO':
                 return (
                     <span
                         className="pay-badge split"
-                        title={sale ? `Efectivo: ${formatCOP(sale.cashAmount)} | Tarjeta: ${formatCOP(sale.cardAmount)} | Transf: ${formatCOP(sale.transferAmount)}` : 'Pago Mixto'}
+                        title={sale ? `Efectivo: ${formatCOP(sale.cashAmount)} | Tarjeta: ${formatCOP(sale.cardAmount)} | Transf: ${formatCOP(sale.transferAmount)}${Number(sale.creditAmount) > 0 ? ` | Crédito: ${formatCOP(sale.creditAmount)}` : ''}` : 'Pago Mixto'}
                     >
                         <FaCoins /> Mixto
                     </span>
