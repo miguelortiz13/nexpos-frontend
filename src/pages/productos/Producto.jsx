@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../../api/client";
 import { FaSearch, FaBarcode, FaBox, FaTags, FaInfoCircle, FaFilter } from "react-icons/fa";
 
 function Producto() {
@@ -12,7 +13,7 @@ function Producto() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/productos")
+    fetch(`${API_BASE_URL}/api/productos`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
