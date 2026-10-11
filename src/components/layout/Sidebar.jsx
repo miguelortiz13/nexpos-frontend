@@ -95,7 +95,7 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                             <li>
                                 <NavLink to="/customers" className={({ isActive }) => (isActive ? 'active' : '')}>
                                     <FaAddressCard className="nav-icon" />
-                                    {!collapsed && <span className="nav-text">Clientes / DIAN</span>}
+                                    {!collapsed && <span className="nav-text">Clientes & Cartera</span>}
                                 </NavLink>
                             </li>
                         </ul>

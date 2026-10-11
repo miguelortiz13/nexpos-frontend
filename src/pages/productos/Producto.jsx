@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaSearch, FaBarcode, FaBox, FaTags, FaInfoCircle, FaFilter } from "react-icons/fa";
+import api from "../../api/client";
 
 function Producto() {
   const [productos, setProductos] = useState([]);
@@ -12,22 +13,20 @@ function Producto() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/productos")
+    api.get("/api/productos")
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
+        const data = res.data || [];
         setProductos(data);
         setFilteredProducts(data);
         const uniqueCategories = [...new Set(data.map(p => p.categoria).filter(Boolean))];
         const uniqueBrands = [...new Set(data.map(p => p.marca).filter(Boolean))];
         setCategories(uniqueCategories);
         setBrands(uniqueBrands);
-        setLoading(false);
       })
       .catch((error) => {
-        console.error("Error:", error);
+        console.error("Error al cargar productos:", error);
+      })
+      .finally(() => {
         setLoading(false);
       });
   }, []);

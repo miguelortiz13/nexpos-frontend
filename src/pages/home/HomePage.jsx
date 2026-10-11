@@ -82,15 +82,15 @@ function HomePage() {
               </div>
             </Link>
 
-            {/* Customers & DIAN */}
+            {/* Customers & Credit / Cartera */}
             <Link to="/customers" className="shortcut-card">
               <div className="shortcut-icon-box customer-icon-box">
                 <FaAddressCard />
               </div>
               <div className="shortcut-content">
-                <div className="shortcut-tag">FACTURACIÓN ELECTRÓNICA</div>
-                <h3>Directorio de Clientes</h3>
-                <p>Gestión de adquirentes (Cédula, NIT) para facturación electrónica DIAN.</p>
+                <div className="shortcut-tag">DIAN Y CARTERA</div>
+                <h3>Clientes & Cartera</h3>
+                <p>Gestión de adquirentes DIAN, cupos de crédito, cobros y recibos de caja.</p>
               </div>
               <div className="shortcut-arrow">
                 <FaArrowRight />

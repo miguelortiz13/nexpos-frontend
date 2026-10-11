@@ -32,4 +32,16 @@ export default defineConfig({
       'quagga': '@ericblade/quagga2',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['recharts'],
+          'vendor-barcode': ['jsbarcode', 'qrcode.react', 'html5-qrcode']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 600
+  }
 });
