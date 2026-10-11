@@ -22,7 +22,9 @@ import {
     FaUserPlus,
     FaUserCheck,
     FaCoins,
-    FaHandHoldingUsd
+    FaHandHoldingUsd,
+    FaWifi,
+    FaSync
 } from 'react-icons/fa';
 import { toast, ToastContainer } from 'react-toastify';
 import BarcodeScanner from '../../components/common/BarcodeScanner';
@@ -34,6 +36,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import api from '../../api/client';
 import cashShiftService from '../../api/cashShiftService';
 import customerService from '../../api/customerService';
+import useNetworkStatus from '../../hooks/useNetworkStatus';
+import { cacheProducts, getCachedProducts, queueOfflineSale } from '../../services/offlineStorage';
 import './SalesPage.css';
 
 const formatCOP = (value) => {
@@ -78,6 +82,31 @@ const SalesPage = () => {
     const [completedSale, setCompletedSale] = useState(null);
     const [showThermalReceipt, setShowThermalReceipt] = useState(false);
 
+    const fetchProducts = async () => {
+        try {
+            const res = await api.get('/api/productos');
+            setProducts(res.data);
+            await cacheProducts(res.data);
+        } catch (error) {
+            console.error('Error al cargar productos del servidor:', error);
+            const cached = await getCachedProducts();
+            if (cached && cached.length > 0) {
+                setProducts(cached);
+                toast.info(`Inventario cargado desde memoria local offline (${cached.length} productos).`);
+            } else {
+                toast.error('Error al cargar inventario y sin datos en memoria local');
+            }
+        }
+    };
+
+    const {
+        isOnline,
+        pendingCount,
+        isSyncing,
+        syncPendingSales,
+        refreshPendingCount
+    } = useNetworkStatus(fetchProducts);
+
     useEffect(() => {
         fetchProducts();
         fetchActiveShift();
@@ -95,16 +124,6 @@ const SalesPage = () => {
     useEffect(() => {
         localStorage.setItem('pos_view_mode', viewMode);
     }, [viewMode]);
-
-    const fetchProducts = async () => {
-        try {
-            const res = await api.get('/api/productos');
-            setProducts(res.data);
-        } catch (error) {
-            console.error('Error al cargar productos:', error);
-            toast.error('Error al cargar inventario');
-        }
-    };
 
     // Extract unique categories for POS quick filtering
     const categories = useMemo(() => {
@@ -391,6 +410,27 @@ const SalesPage = () => {
             }))
         };
 
+        if (!isOnline) {
+            try {
+                const completedOffline = await queueOfflineSale(saleRequest, cart);
+                toast.warn('⚠️ Venta registrada en MODO CONTINGENCIA OFFLINE. Se sincronizará automáticamente al volver la conexión.');
+                setCompletedSale(completedOffline);
+                setShowPaymentModal(false);
+                setCart([]);
+                await refreshPendingCount();
+                setProducts(prev => prev.map(p => {
+                    const item = cart.find(ci => ci.id === p.id);
+                    return item ? { ...p, cantidad: Math.max(0, (p.cantidad || 0) - item.quantity) } : p;
+                }));
+            } catch (err) {
+                console.error('Error guardando en modo contingencia:', err);
+                toast.error('Error al guardar la venta en memoria local offline.');
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
+
         try {
             const res = await api.post('/api/sales', saleRequest);
             const createdSale = res.data;
@@ -404,6 +444,23 @@ const SalesPage = () => {
             await fetchActiveShift();
         } catch (error) {
             console.error('Error al procesar la venta:', error);
+            if (!error.response || error.code === 'ERR_NETWORK') {
+                try {
+                    const completedOffline = await queueOfflineSale(saleRequest, cart);
+                    toast.warn('Fallo de red con el servidor. ¡Venta resguardada localmente en MODO CONTINGENCIA OFFLINE!');
+                    setCompletedSale(completedOffline);
+                    setShowPaymentModal(false);
+                    setCart([]);
+                    await refreshPendingCount();
+                    setProducts(prev => prev.map(p => {
+                        const item = cart.find(ci => ci.id === p.id);
+                        return item ? { ...p, cantidad: Math.max(0, (p.cantidad || 0) - item.quantity) } : p;
+                    }));
+                    return;
+                } catch (offlineErr) {
+                    console.error('Error al respaldar en contingencia offline:', offlineErr);
+                }
+            }
             const msg = error.response?.data?.message || error.message || 'Error al procesar la venta';
             toast.error(msg);
         } finally {
@@ -412,6 +469,10 @@ const SalesPage = () => {
     };
 
     const downloadInvoice = async (saleId) => {
+        if (completedSale?.isOfflineContingency) {
+            toast.info('La factura PDF oficial estará disponible una vez se sincronice con el servidor.');
+            return;
+        }
         try {
             const response = await api.get(`/api/sales/${saleId}/invoice`, { responseType: 'blob' });
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -480,6 +541,40 @@ const SalesPage = () => {
                         </button>
                     </div>
                 )}
+
+                {/* Banner de Estado de Red / Modo Contingencia Offline */}
+                <div className={`pos-network-banner ${isOnline ? 'online' : 'offline'}`}>
+                    <div className="network-status-badge">
+                        <span className={`status-dot ${isOnline ? 'dot-green' : 'dot-orange'}`} />
+                        <span>
+                            {isOnline ? (
+                                <>
+                                    <FaWifi style={{ marginRight: '6px' }} /> En Línea (NexPOS Cloud)
+                                </>
+                            ) : (
+                                <>
+                                    ⚠️ <strong>MODO CONTINGENCIA OFFLINE</strong> • Ventas protegidas en memoria local
+                                </>
+                            )}
+                        </span>
+                        {pendingCount > 0 && (
+                            <span className="badge-pending-sales" title="Ventas realizadas offline pendientes de subir al servidor">
+                                {pendingCount} venta{pendingCount > 1 ? 's' : ''} en cola local
+                            </span>
+                        )}
+                    </div>
+                    {pendingCount > 0 && isOnline && (
+                        <button
+                            className="btn-sync-offline"
+                            onClick={syncPendingSales}
+                            disabled={isSyncing}
+                            title="Sincronizar ventas offline pendientes ahora"
+                        >
+                            <FaSync className={isSyncing ? 'icon-spin' : ''} />
+                            <span>{isSyncing ? 'Sincronizando...' : `Sincronizar (${pendingCount})`}</span>
+                        </button>
+                    )}
+                </div>
 
                 {/* Search Bar & Scanner Trigger */}
                 <div className="pos-search-header">
@@ -1309,8 +1404,12 @@ const SalesPage = () => {
                         <div className="success-icon-wrapper">
                             <FaCheckCircle className="success-check-icon" />
                         </div>
-                        <h3>¡Venta Completada con Éxito!</h3>
-                        <p className="success-invoice-id">Factura Oficial No. #{completedSale.id}</p>
+                        <h3>{completedSale.isOfflineContingency ? '¡Venta en Contingencia Offline!' : '¡Venta Completada con Éxito!'}</h3>
+                        <p className="success-invoice-id">
+                            {completedSale.isOfflineContingency
+                                ? `Ref. Local: ${completedSale.offlineReference} (Pendiente de Sincronizar)`
+                                : `Factura Oficial No. #${completedSale.id}`}
+                        </p>
 
                         <div className="success-ticket-card">
                             <div className="ticket-line">
@@ -1389,11 +1488,14 @@ const SalesPage = () => {
                                 title="Imprimir tiquete de caja para impresora térmica (58mm/80mm)"
                             >
                                 <FaPrint />
-                                <span>Tiquete POS</span>
+                                <span>{completedSale.isOfflineContingency ? 'Tiquete Contingencia' : 'Tiquete POS'}</span>
                             </button>
                             <button
                                 className="btn-download-pdf"
                                 onClick={() => downloadInvoice(completedSale.id)}
+                                disabled={completedSale.isOfflineContingency}
+                                style={completedSale.isOfflineContingency ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                title={completedSale.isOfflineContingency ? 'Factura PDF oficial disponible tras sincronizar con el servidor' : 'Descargar factura PDF'}
                             >
                                 <FaFilePdf />
                                 <span>Factura PDF</span>

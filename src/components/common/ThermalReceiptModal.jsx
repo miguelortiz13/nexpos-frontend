@@ -319,7 +319,13 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                             <div>Resolución DIAN No. {config.dianResolutionNumber}</div>
                             <div>Vigencia: {config.dianStartDate} al {config.dianEndDate}</div>
                             <div>Prefijo {config.dianPrefix} del {config.dianRangeFrom} al {config.dianRangeTo}</div>
-                            <div className="doc-type-badge">DOCUMENTO EQUIVALENTE ELECTRÓNICO POS</div>
+                            {sale.isOfflineContingency ? (
+                                <div className="doc-type-badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px dashed #d97706', fontWeight: 'bold' }}>
+                                    TIQUETE CONTINGENCIA OFFLINE • PENDIENTE DE SINCRONIZACIÓN
+                                </div>
+                            ) : (
+                                <div className="doc-type-badge">DOCUMENTO EQUIVALENTE ELECTRÓNICO POS</div>
+                            )}
                         </div>
 
                         <div className="ticket-divider-line"></div>
