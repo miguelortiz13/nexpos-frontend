@@ -10,7 +10,8 @@ import {
   FaShieldAlt,
   FaBarcode,
   FaMoneyBillWave,
-  FaAddressCard
+  FaAddressCard,
+  FaTruck
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
@@ -108,6 +109,20 @@ function HomePage() {
                     <div className="shortcut-tag">CONTROL DE STOCK</div>
                     <h3>Inventario de Productos</h3>
                     <p>Alta de productos, actualización de precios y alertas de agotados.</p>
+                  </div>
+                  <div className="shortcut-arrow">
+                    <FaArrowRight />
+                  </div>
+                </Link>
+
+                <Link to="/purchases" className="shortcut-card">
+                  <div className="shortcut-icon-box">
+                    <FaTruck />
+                  </div>
+                  <div className="shortcut-content">
+                    <div className="shortcut-tag">CADENA DE SUMINISTRO</div>
+                    <h3>Compras & Proveedores</h3>
+                    <p>Recepción de facturas de distribuidores, actualización de stock y costo promedio ponderado.</p>
                   </div>
                   <div className="shortcut-arrow">
                     <FaArrowRight />

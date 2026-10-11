@@ -12,7 +12,8 @@ import {
     FaStore,
     FaCashRegister,
     FaMoneyBillWave,
-    FaAddressCard
+    FaAddressCard,
+    FaTruck
 } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -111,6 +112,12 @@ const Sidebar = ({ collapsed, setCollapsed }) => {
                                 <NavLink to="/admin/productos" className={({ isActive }) => (isActive ? 'active' : '')}>
                                     <FaBox className="nav-icon" />
                                     {!collapsed && <span className="nav-text">Inventario</span>}
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink to="/purchases" className={({ isActive }) => (isActive ? 'active' : '')}>
+                                    <FaTruck className="nav-icon" />
+                                    {!collapsed && <span className="nav-text">Compras & Proveedores</span>}
                                 </NavLink>
                             </li>
                             <li>

@@ -13,6 +13,7 @@ const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
 const UsersPage = lazy(() => import("./pages/users/UsersPage"));
 const CashShiftPage = lazy(() => import("./pages/cash/CashShiftPage"));
 const CustomersPage = lazy(() => import("./pages/customers/CustomersPage"));
+const PurchasesPage = lazy(() => import("./pages/purchases/PurchasesPage"));
 const Login = lazy(() => import("./pages/auth/Login"));
 
 const PageLoader = () => (
@@ -94,6 +95,14 @@ function App() {
                     element={
                       <ProtectedRoute requiredRole="ADMIN">
                         <ProductoCRUD />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/purchases"
+                    element={
+                      <ProtectedRoute requiredRole="ADMIN">
+                        <PurchasesPage />
                       </ProtectedRoute>
                     }
                   />
