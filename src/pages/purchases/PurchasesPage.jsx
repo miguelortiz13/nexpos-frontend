@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     FaTruck,
     FaPlus,
@@ -18,12 +19,19 @@ import {
     FaExclamationTriangle,
     FaArrowRight,
     FaExchangeAlt,
-    FaUserTie
+    FaUserTie,
+    FaRobot,
+    FaWhatsapp,
+    FaShoppingCart,
+    FaRedo,
+    FaChartLine,
+    FaBolt
 } from 'react-icons/fa';
 import { toast, ToastContainer } from 'react-toastify';
 import api from '../../api/client';
 import { getSuppliers, createSupplier, updateSupplier, toggleSupplierStatus } from '../../api/supplierService';
 import { getPurchases, createPurchase, cancelPurchase, getPayablesSummary } from '../../api/purchaseService';
+import { getForecastAnalysis } from '../../api/forecastingService';
 import 'react-toastify/dist/ReactToastify.css';
 import './PurchasesPage.css';
 
@@ -36,7 +44,8 @@ const formatCOP = (val) => {
 };
 
 export default function PurchasesPage() {
-    const [activeTab, setActiveTab] = useState('RECEIVE'); // 'RECEIVE', 'HISTORY', 'SUPPLIERS', 'PAYABLES'
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'RECEIVE'); // 'RECEIVE', 'HISTORY', 'SUPPLIERS', 'PAYABLES', 'FORECASTING'
     const [loading, setLoading] = useState(false);
 
     // Datos base
@@ -44,6 +53,15 @@ export default function PurchasesPage() {
     const [products, setProducts] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [payablesSummary, setPayablesSummary] = useState(null);
+
+    // Estado del Asistente de Reabastecimiento IA (Pilar E)
+    const [forecastingData, setForecastingData] = useState(null);
+    const [forecastDays, setForecastDays] = useState(14);
+    const [forecastTargetDays, setForecastTargetDays] = useState(15);
+    const [forecastingLoading, setForecastingLoading] = useState(false);
+    const [forecastFilterStatus, setForecastFilterStatus] = useState('ALL');
+    const [forecastSearch, setForecastSearch] = useState('');
+    const [forecastSupplierFilter, setForecastSupplierFilter] = useState('ALL');
 
     // Formulario de Nueva Compra
     const [selectedSupplierId, setSelectedSupplierId] = useState('');
@@ -130,11 +148,97 @@ export default function PurchasesPage() {
         }
     };
 
+    const loadForecasting = async (days = forecastDays, target = forecastTargetDays) => {
+        setForecastingLoading(true);
+        try {
+            const data = await getForecastAnalysis(days, target);
+            setForecastingData(data);
+        } catch (err) {
+            console.error('Error cargando pronóstico de inventario:', err);
+            toast.error('Error al generar pronóstico de inventario');
+        } finally {
+            setForecastingLoading(false);
+        }
+    };
+
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         if (tab === 'HISTORY') loadPurchases();
         if (tab === 'PAYABLES') loadPayables();
         if (tab === 'SUPPLIERS') loadInitialData();
+        if (tab === 'FORECASTING') loadForecasting();
+    };
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab');
+        if (tabParam && ['RECEIVE', 'HISTORY', 'SUPPLIERS', 'PAYABLES', 'FORECASTING'].includes(tabParam)) {
+            handleTabChange(tabParam);
+        }
+    }, [searchParams]);
+
+    const handleConvertToPurchase = (supplierGroup) => {
+        if (!supplierGroup || !supplierGroup.items || supplierGroup.items.length === 0) {
+            toast.warn('No hay productos sugeridos en este grupo');
+            return;
+        }
+
+        if (supplierGroup.supplierId) {
+            setSelectedSupplierId(supplierGroup.supplierId.toString());
+            const supp = suppliers.find(s => s.id === supplierGroup.supplierId);
+            if (supp && supp.paymentTermsDays > 0) {
+                setPaymentMethod('CREDITO_PROVEEDOR');
+                const targetDate = new Date();
+                targetDate.setDate(targetDate.getDate() + supp.paymentTermsDays);
+                setPaymentDueDate(targetDate.toISOString().split('T')[0]);
+            } else {
+                setPaymentMethod('EFECTIVO');
+            }
+        } else {
+            setSelectedSupplierId('');
+        }
+
+        setSupplierInvoiceNumber(`PEDIDO-IA-${new Date().toISOString().slice(5, 10).replace('-', '')}`);
+        setPurchaseNotes(`Orden sugerida automáticamente por el Asistente IA de Reabastecimiento para cobertura de ${forecastTargetDays} días.`);
+
+        const preloadedItems = supplierGroup.items.map(item => {
+            const cost = Number(item.unitCost) || 0;
+            const qty = Number(item.suggestedOrderQty) || 1;
+            const taxRate = 0.19;
+            const taxAmount = cost * taxRate * qty;
+            const subtotal = cost * qty;
+            const total = subtotal + taxAmount;
+
+            return {
+                product: {
+                    id: item.productId,
+                    nombre: item.productName,
+                    codigoBarras: item.barcode,
+                    cantidad: item.currentStock,
+                    costPrice: cost
+                },
+                quantity: qty,
+                unitCost: cost,
+                taxRate,
+                taxAmount,
+                subtotal,
+                total
+            };
+        });
+
+        setPurchaseItems(preloadedItems);
+        setActiveTab('RECEIVE');
+        toast.success(`¡${preloadedItems.length} producto(s) cargados en la recepción para ${supplierGroup.supplierName}!`);
+    };
+
+    const handleSendWhatsApp = (supplierGroup) => {
+        if (!supplierGroup.supplierPhone) {
+            toast.warn(`El proveedor "${supplierGroup.supplierName}" no tiene teléfono registrado. Edita sus datos en el Directorio.`);
+            return;
+        }
+        const cleanPhone = supplierGroup.supplierPhone.replace(/[^0-9]/g, '');
+        const phoneWithCountry = cleanPhone.length === 10 ? `57${cleanPhone}` : cleanPhone;
+        const encoded = encodeURIComponent(supplierGroup.suggestedWhatsAppMessage || '');
+        window.open(`https://wa.me/${phoneWithCountry}?text=${encoded}`, '_blank');
     };
 
     // Auto-ajustar fecha de vencimiento según proveedor seleccionado y método de pago
@@ -420,6 +524,33 @@ export default function PurchasesPage() {
         });
     }, [purchases, historySearch, historySupplierFilter, historyStatusFilter]);
 
+    const filteredForecastItems = useMemo(() => {
+        if (!forecastingData || !forecastingData.items) return [];
+
+        return forecastingData.items.filter(item => {
+            const matchesSearch = !forecastSearch.trim() ||
+                item.productName.toLowerCase().includes(forecastSearch.toLowerCase()) ||
+                (item.barcode && item.barcode.includes(forecastSearch)) ||
+                (item.category && item.category.toLowerCase().includes(forecastSearch.toLowerCase()));
+
+            if (!matchesSearch) return false;
+
+            if (forecastSupplierFilter !== 'ALL') {
+                const sId = item.suggestedSupplierId ? String(item.suggestedSupplierId) : 'NONE';
+                if (sId !== String(forecastSupplierFilter)) return false;
+            }
+
+            if (forecastFilterStatus === 'RISK') {
+                return ['OUT_OF_STOCK', 'CRITICAL', 'LOW_STOCK'].includes(item.stockStatus);
+            }
+            if (forecastFilterStatus !== 'ALL' && item.stockStatus !== forecastFilterStatus) {
+                return false;
+            }
+
+            return true;
+        });
+    }, [forecastingData, forecastSearch, forecastFilterStatus, forecastSupplierFilter]);
+
     return (
         <div className="purchases-page-container">
             <ToastContainer position="top-right" autoClose={3000} />
@@ -464,6 +595,12 @@ export default function PurchasesPage() {
                     onClick={() => handleTabChange('PAYABLES')}
                 >
                     <FaMoneyBillWave /> Cuentas por Pagar
+                </button>
+                <button
+                    className={`tab-btn tab-btn-ai ${activeTab === 'FORECASTING' ? 'active' : ''}`}
+                    onClick={() => handleTabChange('FORECASTING')}
+                >
+                    <FaRobot /> Asistente IA Reabastecimiento
                 </button>
             </div>
 
@@ -983,6 +1120,336 @@ export default function PurchasesPage() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* TAB 5: ASISTENTE IA DE REABASTECIMIENTO & PRONÓSTICO      */}
+            {/* ========================================================= */}
+            {activeTab === 'FORECASTING' && (
+                <div className="forecasting-tab-content">
+                    {/* Header Controls Bar */}
+                    <div className="forecast-controls-card">
+                        <div className="forecast-title-area">
+                            <h3><FaRobot className="icon-ai" /> Asistente Inteligente de Reabastecimiento & Pronóstico (AI)</h3>
+                            <p>
+                                Proyección algorítmica de agotamiento de stock basada en velocidad histórica de venta por producto y sugerencias de reabastecimiento agrupadas por proveedor.
+                            </p>
+                        </div>
+                        <div className="forecast-controls-form">
+                            <div className="control-field">
+                                <label><FaHistory /> Ventana de Análisis:</label>
+                                <select
+                                    value={forecastDays}
+                                    onChange={(e) => {
+                                        const d = Number(e.target.value);
+                                        setForecastDays(d);
+                                        loadForecasting(d, forecastTargetDays);
+                                    }}
+                                    className="form-control"
+                                >
+                                    <option value={7}>Últimos 7 días (Semanal)</option>
+                                    <option value={14}>Últimos 14 días (Quincenal)</option>
+                                    <option value={30}>Últimos 30 días (Mensual)</option>
+                                </select>
+                            </div>
+                            <div className="control-field">
+                                <label><FaCalendarAlt /> Cobertura Deseada:</label>
+                                <select
+                                    value={forecastTargetDays}
+                                    onChange={(e) => {
+                                        const t = Number(e.target.value);
+                                        setForecastTargetDays(t);
+                                        loadForecasting(forecastDays, t);
+                                    }}
+                                    className="form-control"
+                                >
+                                    <option value={7}>7 días de stock</option>
+                                    <option value={15}>15 días de stock</option>
+                                    <option value={30}>30 días de stock</option>
+                                </select>
+                            </div>
+                            <button
+                                className="btn-refresh-forecast"
+                                onClick={() => loadForecasting()}
+                                disabled={forecastingLoading}
+                            >
+                                <FaRedo className={forecastingLoading ? 'icon-spin' : ''} />
+                                <span>{forecastingLoading ? 'Calculando...' : 'Recalcular'}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* KPI Cards Grid */}
+                    {forecastingData && (
+                        <div className="forecast-kpi-grid">
+                            <div className="forecast-kpi-card kpi-out">
+                                <div className="kpi-icon"><FaTimesCircle /></div>
+                                <div className="kpi-info">
+                                    <span className="kpi-num">{forecastingData.outOfStockCount}</span>
+                                    <span className="kpi-lbl">Agotados (Stock 0)</span>
+                                </div>
+                            </div>
+                            <div className="forecast-kpi-card kpi-crit">
+                                <div className="kpi-icon"><FaExclamationTriangle /></div>
+                                <div className="kpi-info">
+                                    <span className="kpi-num">{forecastingData.criticalCount}</span>
+                                    <span className="kpi-lbl">Nivel Crítico (&le; 2 días)</span>
+                                </div>
+                            </div>
+                            <div className="forecast-kpi-card kpi-low">
+                                <div className="kpi-icon"><FaClock /></div>
+                                <div className="kpi-info">
+                                    <span className="kpi-num">{forecastingData.lowStockCount}</span>
+                                    <span className="kpi-lbl">Bajo Stock (&le; 5 días)</span>
+                                </div>
+                            </div>
+                            <div className="forecast-kpi-card kpi-reorder">
+                                <div className="kpi-icon"><FaBoxes /></div>
+                                <div className="kpi-info">
+                                    <span className="kpi-num">{forecastingData.reorderRequiredCount}</span>
+                                    <span className="kpi-lbl">Ítems a Reordenar</span>
+                                </div>
+                            </div>
+                            <div className="forecast-kpi-card kpi-invest">
+                                <div className="kpi-icon"><FaMoneyBillWave /></div>
+                                <div className="kpi-info">
+                                    <span className="kpi-num">{formatCOP(forecastingData.totalInvestmentRequired)}</span>
+                                    <span className="kpi-lbl">Inversión Estimada Requerida</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Sección 1: Pedidos Sugeridos Agrupados por Proveedor */}
+                    <div className="forecast-section-card">
+                        <div className="forecast-section-header">
+                            <div>
+                                <h4><FaTruck /> Pedidos Sugeridos por Proveedor ({forecastingData?.supplierGroups?.length || 0})</h4>
+                                <p>Sugerencias consolidadas por distribuidor habitual para cotizar o emitir en 1 clic.</p>
+                            </div>
+                        </div>
+
+                        {forecastingLoading ? (
+                            <div className="text-center py-5">
+                                <div className="forecast-spinner"></div>
+                                <p className="mt-2 text-muted">Analizando velocidad de venta y calculando reposición...</p>
+                            </div>
+                        ) : !forecastingData || forecastingData.supplierGroups.length === 0 ? (
+                            <div className="alert-healthy-stock">
+                                <FaCheckCircle className="icon-success-large" />
+                                <div>
+                                    <h5>¡Inventario en Estado Óptimo!</h5>
+                                    <p>No se requieren compras inmediatas para los próximos {forecastTargetDays} días según el ritmo de ventas actual.</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="supplier-groups-grid">
+                                {forecastingData.supplierGroups.map((group, idx) => (
+                                    <div key={group.supplierId || `none-${idx}`} className="supplier-group-card">
+                                        <div className="group-card-header">
+                                            <div>
+                                                <h5 className="group-supplier-name">{group.supplierName}</h5>
+                                                <span className="group-supplier-meta">
+                                                    NIT: {group.supplierNit} {group.supplierPhone ? `• Tel: ${group.supplierPhone}` : ''}
+                                                </span>
+                                            </div>
+                                            <div className="group-cost-badge">
+                                                <span>Total Estimado</span>
+                                                <strong>{formatCOP(group.totalEstimatedCost)}</strong>
+                                            </div>
+                                        </div>
+
+                                        <div className="group-card-body">
+                                            <div className="group-metrics-pills">
+                                                <span className="pill-metric">{group.itemCount} producto{group.itemCount > 1 ? 's' : ''}</span>
+                                                <span className="pill-metric">{group.totalUnits} unidades a pedir</span>
+                                            </div>
+
+                                            <div className="group-items-preview">
+                                                {group.items.slice(0, 4).map(it => (
+                                                    <div key={it.productId} className="preview-item-row">
+                                                        <span className="preview-name">{it.productName}</span>
+                                                        <span className="preview-qty"><strong>{it.suggestedOrderQty}</strong> und</span>
+                                                    </div>
+                                                ))}
+                                                {group.items.length > 4 && (
+                                                    <div className="preview-more">
+                                                        + {group.items.length - 4} producto(s) adicional(es)
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="group-card-actions">
+                                            {group.supplierPhone && (
+                                                <button
+                                                    className="btn-action-whatsapp"
+                                                    onClick={() => handleSendWhatsApp(group)}
+                                                    title="Abrir chat de WhatsApp con orden formateada"
+                                                >
+                                                    <FaWhatsapp /> Pedir por WhatsApp
+                                                </button>
+                                            )}
+                                            <button
+                                                className="btn-action-convert"
+                                                onClick={() => handleConvertToPurchase(group)}
+                                                title="Cargar estos ítems en el formulario de recepción de compra"
+                                            >
+                                                <FaShoppingCart /> Crear Compra Directa
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Sección 2: Tabla de Rotación y Pronóstico por Producto */}
+                    <div className="forecast-section-card mt-4">
+                        <div className="forecast-section-header">
+                            <div>
+                                <h4><FaBoxes /> Detalle de Rotación y Pronóstico por Producto</h4>
+                                <p>Monitoreo individual de rotación, días restantes y estado de cada producto del catálogo.</p>
+                            </div>
+                        </div>
+
+                        {/* Filtros de Tabla */}
+                        <div className="forecast-table-filters">
+                            <div className="filter-search-box">
+                                <FaSearch className="search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar producto por nombre, código de barras o categoría..."
+                                    value={forecastSearch}
+                                    onChange={(e) => setForecastSearch(e.target.value)}
+                                    className="form-control"
+                                />
+                            </div>
+
+                            <div className="filter-select-group">
+                                <select
+                                    value={forecastFilterStatus}
+                                    onChange={(e) => setForecastFilterStatus(e.target.value)}
+                                    className="form-control"
+                                >
+                                    <option value="ALL">Todos los Estados</option>
+                                    <option value="RISK">En Riesgo (Agotados + Críticos + Bajo)</option>
+                                    <option value="OUT_OF_STOCK">Agotados (Stock 0)</option>
+                                    <option value="CRITICAL">Nivel Crítico (&le; 2 días)</option>
+                                    <option value="LOW_STOCK">Bajo Stock (&le; 5 días)</option>
+                                    <option value="MODERATE">Moderado (6 a 14 días)</option>
+                                    <option value="HEALTHY">Saludable (&gt; 14 días)</option>
+                                    <option value="NO_MOVEMENT">Sin Rotación</option>
+                                </select>
+
+                                <select
+                                    value={forecastSupplierFilter}
+                                    onChange={(e) => setForecastSupplierFilter(e.target.value)}
+                                    className="form-control"
+                                >
+                                    <option value="ALL">Todos los Proveedores</option>
+                                    {suppliers.map(s => (
+                                        <option key={s.id} value={String(s.id)}>{s.companyName}</option>
+                                    ))}
+                                    <option value="NONE">Sin Proveedor Asignado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Tabla de Productos */}
+                        <div className="table-responsive">
+                            <table className="purchases-table forecast-table">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Stock Actual</th>
+                                        <th>Ventas ({forecastDays}d)</th>
+                                        <th>Velocidad Diaria</th>
+                                        <th>Días Restantes</th>
+                                        <th>Nivel de Riesgo</th>
+                                        <th>Cantidad Sugerida</th>
+                                        <th>Inversión Estimada</th>
+                                        <th>Proveedor Sugerido</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredForecastItems.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="9" className="text-center py-4 text-muted">
+                                                No se encontraron productos que coincidan con los filtros seleccionados.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredForecastItems.map(item => {
+                                            const statusBadges = {
+                                                OUT_OF_STOCK: { label: 'Agotado', cls: 'badge-status-out' },
+                                                CRITICAL: { label: 'Crítico', cls: 'badge-status-crit' },
+                                                LOW_STOCK: { label: 'Bajo Stock', cls: 'badge-status-low' },
+                                                MODERATE: { label: 'Moderado', cls: 'badge-status-mod' },
+                                                HEALTHY: { label: 'Saludable', cls: 'badge-status-ok' },
+                                                NO_MOVEMENT: { label: 'Sin Ventas', cls: 'badge-status-none' }
+                                            };
+                                            const badge = statusBadges[item.stockStatus] || { label: item.stockStatus, cls: '' };
+
+                                            return (
+                                                <tr key={item.productId}>
+                                                    <td>
+                                                        <div className="item-name-cell">
+                                                            <strong>{item.productName}</strong>
+                                                            <span className="item-sub-meta">
+                                                                {item.category || 'General'} {item.barcode ? `• Cód: ${item.barcode}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span className={item.currentStock <= 0 ? 'text-danger font-bold' : (item.currentStock <= item.minStock ? 'text-warning font-bold' : '')}>
+                                                            {item.currentStock} und (Mín: {item.minStock})
+                                                        </span>
+                                                    </td>
+                                                    <td>{item.totalSoldInPeriod} und</td>
+                                                    <td><strong>{item.dailySaleVelocity}</strong> /día</td>
+                                                    <td>
+                                                        {item.estimatedDaysRemaining != null ? (
+                                                            <span className={item.estimatedDaysRemaining <= 2 ? 'text-danger font-bold' : (item.estimatedDaysRemaining <= 5 ? 'text-warning font-bold' : '')}>
+                                                                {item.estimatedDaysRemaining} días
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span className={`forecast-status-badge ${badge.cls}`}>
+                                                            {badge.label}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        {item.suggestedOrderQty > 0 ? (
+                                                            <strong className="text-primary font-bold">
+                                                                +{item.suggestedOrderQty} und
+                                                            </strong>
+                                                        ) : (
+                                                            <span className="text-muted">0</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        {item.suggestedOrderQty > 0 ? (
+                                                            <strong>{formatCOP(item.estimatedOrderCost)}</strong>
+                                                        ) : (
+                                                            <span className="text-muted">$0</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <span className="supplier-col-name">{item.suggestedSupplierName}</span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

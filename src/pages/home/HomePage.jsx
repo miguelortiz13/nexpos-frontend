@@ -11,7 +11,8 @@ import {
   FaBarcode,
   FaMoneyBillWave,
   FaAddressCard,
-  FaTruck
+  FaTruck,
+  FaRobot
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
@@ -125,6 +126,20 @@ function HomePage() {
                     <p>Recepción de facturas de distribuidores, actualización de stock y costo promedio ponderado.</p>
                   </div>
                   <div className="shortcut-arrow">
+                    <FaArrowRight />
+                  </div>
+                </Link>
+
+                <Link to="/purchases?tab=FORECASTING" className="shortcut-card" style={{ borderColor: 'rgba(99, 102, 241, 0.3)', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(168, 85, 247, 0.04))' }}>
+                  <div className="shortcut-icon-box" style={{ background: '#e0e7ff', color: '#4f46e5' }}>
+                    <FaRobot />
+                  </div>
+                  <div className="shortcut-content">
+                    <div className="shortcut-tag" style={{ color: '#4f46e5', fontWeight: 700 }}>PILAR E • INTELIGENCIA ARTIFICIAL</div>
+                    <h3>Pronóstico & Reabastecimiento IA</h3>
+                    <p>Predicción de agotamiento de stock, rotación diaria y pedidos automáticos por WhatsApp.</p>
+                  </div>
+                  <div className="shortcut-arrow" style={{ color: '#4f46e5' }}>
                     <FaArrowRight />
                   </div>
                 </Link>
