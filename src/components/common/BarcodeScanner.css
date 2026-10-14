@@ -109,13 +109,6 @@
     display: block;
 }
 
-/* Hide unneeded html5-qrcode injected banners */
-#interactive-scanner-viewport__dashboard_section,
-#interactive-scanner-viewport__dashboard_section_swaplink,
-#interactive-scanner-viewport__header_message {
-    display: none !important;
-}
-
 /* Viewfinder Overlay with Reticle & Laser */
 .viewfinder-overlay {
     position: absolute;

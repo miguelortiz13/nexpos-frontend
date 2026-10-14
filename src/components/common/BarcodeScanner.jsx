@@ -1,113 +1,190 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { FaCamera, FaTimes, FaKeyboard, FaCheck, FaSyncAlt } from 'react-icons/fa';
+import { FaCamera, FaTimes, FaKeyboard, FaCheck } from 'react-icons/fa';
 import { playBarcodeBeep } from '../../utils/audio';
 import './BarcodeScanner.css';
 
+// Formatos de producto. El detector nativo usa nombres de la Shape Detection API;
+// Quagga2 usa sus "readers".
+const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'qr_code'];
+const QUAGGA_READERS = ['ean_reader', 'ean_8_reader', 'upc_reader', 'upc_e_reader', 'code_128_reader'];
+
+// Pausa entre intentos de lectura (ms). Cada intento decodifica el cuadro completo.
+const SCAN_INTERVAL_MS = 120;
+
+const VIDEO_SIZE = { width: { ideal: 1280 }, height: { ideal: 720 } };
+
+/**
+ * Decodificador con la API nativa BarcodeDetector (Chrome/Edge en Android, macOS).
+ * Devuelve null si el navegador no la tiene o no soporta códigos de producto.
+ */
+async function createNativeDecoder() {
+  if (!('BarcodeDetector' in window)) return null;
+  try {
+    const supported = await window.BarcodeDetector.getSupportedFormats();
+    const formats = NATIVE_FORMATS.filter((f) => supported.includes(f));
+    if (!formats.includes('ean_13')) return null;
+    const detector = new window.BarcodeDetector({ formats });
+    return {
+      name: 'nativo',
+      // Lecturas nativas son fiables: basta una.
+      confirmations: 1,
+      decode: async (video) => {
+        const codes = await detector.detect(video);
+        return codes.length > 0 ? codes[0].rawValue : null;
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decodificador de respaldo con Quagga2 (Safari/iOS, Firefox, escritorio).
+ * Se carga bajo demanda para no inflar el bundle de quien tiene el nativo.
+ */
+async function createQuaggaDecoder() {
+  const { default: Quagga } = await import('quagga');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let pass = 0;
+  return {
+    name: 'quagga',
+    // Quagga puede confundir un dígito: se exige la misma lectura dos veces.
+    confirmations: 2,
+    decode: (video) => {
+      // Se usa la resolución real del video, no el tamaño del visor en pantalla:
+      // reducir el cuadro deja las barras de un EAN-13 más finas que un píxel.
+      // Se alterna el cuadro completo (códigos cerca o desenfocados) con el
+      // centro ampliado (códigos lejos o girados, donde apunta el visor).
+      const fraction = pass++ % 2 === 0 ? 1 : 0.6;
+      const sw = video.videoWidth * fraction;
+      const sh = video.videoHeight * fraction;
+      canvas.width = sw;
+      canvas.height = sh;
+      ctx.drawImage(video, (video.videoWidth - sw) / 2, (video.videoHeight - sh) / 2, sw, sh, 0, 0, sw, sh);
+      return new Promise((resolve) => {
+        Quagga.decodeSingle(
+          {
+            src: canvas.toDataURL('image/jpeg', 0.9),
+            numOfWorkers: 0,
+            locate: true,
+            inputStream: { size: Math.max(video.videoWidth, video.videoHeight) },
+            locator: { patchSize: 'medium', halfSample: false },
+            decoder: { readers: QUAGGA_READERS },
+          },
+          (result) => resolve(result?.codeResult?.code || null)
+        );
+      });
+    },
+  };
+}
+
 const BarcodeScanner = ({ onScan, onClose }) => {
-  const html5QrCodeRef = useRef(null);
+  const videoRef = useRef(null);
+  const onScanRef = useRef(onScan);
+  const onCloseRef = useRef(onClose);
+  onScanRef.current = onScan;
+  onCloseRef.current = onClose;
+
   const [cameras, setCameras] = useState([]);
-  const [selectedCameraId, setSelectedCameraId] = useState('');
+  // Cámara pedida por el usuario; vacía = automática (trasera si existe).
+  const [requestedCameraId, setRequestedCameraId] = useState('');
+  const [activeCameraId, setActiveCameraId] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
   const [scannerStatus, setScannerStatus] = useState('Iniciando cámara...');
 
-  // Get available video inputs on mount
   useEffect(() => {
-    Html5Qrcode.getCameras()
-      .then((devices) => {
-        if (devices && devices.length > 0) {
-          setCameras(devices);
-          // Prefer back camera if found in device label
-          const backCam = devices.find(d =>
-            d.label.toLowerCase().includes('back') ||
-            d.label.toLowerCase().includes('trasera') ||
-            d.label.toLowerCase().includes('environment')
-          );
-          setSelectedCameraId(backCam ? backCam.id : devices[0].id);
-        } else {
-          setScannerStatus('No se detectaron cámaras en este dispositivo');
-        }
-      })
-      .catch((err) => {
-        console.warn('Error al enumerar cámaras:', err);
-        setScannerStatus('Permiso de cámara no concedido');
-      });
-  }, []);
+    let cancelled = false;
+    let stream = null;
+    let timer = null;
 
-  // Start scanner when camera is selected
-  useEffect(() => {
-    if (!selectedCameraId) return;
-
-    const html5QrCode = new Html5Qrcode("interactive-scanner-viewport", {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.QR_CODE
-      ],
-      verbose: false
-    });
-    html5QrCodeRef.current = html5QrCode;
-
-    const config = {
-      fps: 15,
-      qrbox: { width: 300, height: 160 },
-      aspectRatio: 1.5,
-      videoConstraints: {
-        focusMode: "continuous"
-      }
+    const finish = (code) => {
+      playBarcodeBeep('success');
+      onScanRef.current(code);
+      if (onCloseRef.current) onCloseRef.current();
     };
 
-    setScannerStatus('Alinea el código de barras en el recuadro');
-
-    html5QrCode.start(
-      selectedCameraId,
-      config,
-      (decodedText) => {
-        if (decodedText) {
-          // Play supermarket confirmation beep
-          playBarcodeBeep('success');
-
-          // Clean stop
-          html5QrCode.stop()
-            .then(() => {
-              html5QrCode.clear();
-              onScan(decodedText);
-              if (onClose) onClose();
-            })
-            .catch(() => {
-              onScan(decodedText);
-              if (onClose) onClose();
-            });
-        }
-      },
-      () => {
-        // Continuous search frame, ignore safely
+    const start = async () => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setScannerStatus('La cámara requiere HTTPS y un navegador compatible');
+        return;
       }
-    ).catch((err) => {
-      console.error("Error al iniciar cámara:", err);
-      setScannerStatus('Error al iniciar transmisión de video');
-    });
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            ...(requestedCameraId
+              ? { deviceId: { exact: requestedCameraId } }
+              : { facingMode: { ideal: 'environment' } }),
+            ...VIDEO_SIZE,
+            advanced: [{ focusMode: 'continuous' }],
+          },
+        });
+      } catch (err) {
+        console.warn('Error al abrir la cámara:', err);
+        if (!cancelled) {
+          setScannerStatus(
+            err?.name === 'NotAllowedError'
+              ? 'Permiso de cámara no concedido'
+              : 'No se pudo abrir la cámara'
+          );
+        }
+        return;
+      }
+      if (cancelled) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      const video = videoRef.current;
+      video.srcObject = stream;
+      await video.play().catch(() => {});
+
+      // Con el permiso concedido ya hay nombres de cámara para el selector.
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      if (cancelled) return;
+      setCameras(devices.filter((d) => d.kind === 'videoinput'));
+      setActiveCameraId(stream.getVideoTracks()[0]?.getSettings().deviceId || '');
+
+      const decoder = (await createNativeDecoder()) || (await createQuaggaDecoder());
+      if (cancelled) return;
+      setScannerStatus('Alinea el código de barras en el recuadro');
+
+      let lastCode = null;
+      let hits = 0;
+      const tick = async () => {
+        if (cancelled) return;
+        let code = null;
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          try {
+            code = await decoder.decode(video);
+          } catch (err) {
+            console.warn('Error decodificando cuadro:', err);
+          }
+        }
+        if (cancelled) return;
+        if (code) {
+          hits = code === lastCode ? hits + 1 : 1;
+          lastCode = code;
+          if (hits >= decoder.confirmations) {
+            finish(code);
+            return;
+          }
+        }
+        timer = setTimeout(tick, SCAN_INTERVAL_MS);
+      };
+      tick();
+    };
+
+    start();
 
     return () => {
-      if (html5QrCodeRef.current) {
-        try {
-          if (html5QrCodeRef.current.isScanning) {
-            html5QrCodeRef.current.stop().then(() => {
-              html5QrCodeRef.current.clear();
-            }).catch(console.error);
-          } else {
-            html5QrCodeRef.current.clear();
-          }
-        } catch (e) {
-          console.error("Error limpiando cámara:", e);
-        }
-      }
+      cancelled = true;
+      clearTimeout(timer);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [selectedCameraId]);
+  }, [requestedCameraId]);
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
@@ -131,12 +208,12 @@ const BarcodeScanner = ({ onScan, onClose }) => {
           {cameras.length > 1 && (
             <select
               className="camera-select-dropdown"
-              value={selectedCameraId}
-              onChange={(e) => setSelectedCameraId(e.target.value)}
+              value={activeCameraId}
+              onChange={(e) => setRequestedCameraId(e.target.value)}
               title="Cambiar Cámara"
             >
               {cameras.map((c, i) => (
-                <option key={c.id} value={c.id}>
+                <option key={c.deviceId} value={c.deviceId}>
                   {c.label || `Cámara ${i + 1}`}
                 </option>
               ))}
@@ -153,7 +230,9 @@ const BarcodeScanner = ({ onScan, onClose }) => {
 
       {/* Video Viewport with Targeting Overlay */}
       <div className="scanner-camera-window">
-        <div id="interactive-scanner-viewport"></div>
+        <div id="interactive-scanner-viewport">
+          <video ref={videoRef} muted playsInline autoPlay />
+        </div>
 
         {/* Viewfinder Overlay with Corner Brackets */}
         <div className="viewfinder-overlay">
