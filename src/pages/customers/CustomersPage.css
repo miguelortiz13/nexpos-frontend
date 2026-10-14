@@ -1,5 +1,5 @@
 /* ===================================================================
-   NexPOS - Customers Page Styles (Directorio y Facturación Nominal)
+   NexPOS - Customers Page Styles (Directorio, Facturación y Cartera)
    =================================================================== */
 
 .customers-dashboard {
@@ -61,18 +61,18 @@
 /* KPI Grid */
 .customers-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
 }
 
 .customers-kpi-card {
     background-color: var(--surface-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: 1.15rem 1.25rem;
+    padding: 1.25rem 1.5rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.15rem;
     box-shadow: var(--shadow-xs);
     transition: transform var(--transition-fast);
 }
@@ -82,14 +82,22 @@
     box-shadow: var(--shadow-sm);
 }
 
+.customers-kpi-card.danger-card {
+    border-left: 4px solid #dc2626;
+}
+
+.customers-kpi-card.info-card {
+    border-left: 4px solid #0284c7;
+}
+
 .kpi-icon-cust {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.4rem;
     flex-shrink: 0;
 }
 
@@ -98,25 +106,58 @@
     color: var(--primary);
 }
 
+.kpi-icon-cust.danger {
+    background-color: #fef2f2;
+    color: #dc2626;
+}
+
 .kpi-icon-cust.info {
-    background-color: #eff6ff;
-    color: #2563eb;
+    background-color: #f0f9ff;
+    color: #0284c7;
 }
 
-.kpi-icon-cust.accent {
-    background-color: #f5f3ff;
-    color: #7c3aed;
+.kpi-label {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+    font-weight: 600;
 }
 
-.customers-search-row {
+.kpi-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.kpi-value.primary {
+    color: var(--gray-900);
+}
+
+.kpi-value.danger {
+    color: #dc2626;
+}
+
+.kpi-value.info {
+    color: #0284c7;
+}
+
+.kpi-subtext {
+    font-size: 0.72rem;
+    color: var(--gray-500);
+    margin-top: 2px;
+}
+
+/* Toolbar & Category Filters */
+.customers-toolbar-row {
     display: flex;
     gap: 1rem;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
 }
 
 .customers-search-input-box {
     position: relative;
     flex: 1;
+    min-width: 280px;
 }
 
 .customers-search-input-box svg {
@@ -143,6 +184,46 @@
     box-shadow: 0 0 0 3px var(--primary-focus);
 }
 
+.customers-category-tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 10px;
+}
+
+.btn-tab {
+    background: transparent;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-tab:hover {
+    color: #0f172a;
+}
+
+.btn-tab.active {
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-tab.debt-tab.active {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.btn-tab.credit-tab.active {
+    color: #0284c7;
+    font-weight: 700;
+}
+
 /* Table Card */
 .customers-table-card {
     background-color: var(--surface-card);
@@ -155,13 +236,13 @@
 .customers-data-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
 }
 
 .customers-data-table th {
     background-color: var(--gray-50);
     color: var(--gray-700);
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.5px;
@@ -174,10 +255,19 @@
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--gray-100);
     color: var(--gray-800);
+    vertical-align: middle;
 }
 
 .customers-data-table tr:hover {
     background-color: var(--gray-50);
+}
+
+.customers-data-table tr.row-with-debt {
+    background-color: #fffafa;
+}
+
+.customers-data-table tr.row-with-debt:hover {
+    background-color: #fef2f2 !important;
 }
 
 .doc-badge-pill {
@@ -193,27 +283,198 @@
     color: var(--gray-800);
 }
 
+.cust-name-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cust-name-cell strong {
+    font-size: 0.95rem;
+    color: #0f172a;
+}
+
+.cust-city-sub {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.cust-contact-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
 .email-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    color: var(--primary);
-    font-size: 0.82rem;
-    font-weight: 500;
+    color: #0284c7;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
 
-.btn-edit-cust {
-    background: none;
-    border: 1px solid var(--gray-200);
-    color: var(--gray-600);
-    padding: 6px 10px;
+.phone-chip {
+    font-size: 0.8rem;
+    color: #475569;
+}
+
+.empty-contact {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Credit & Accounts Receivable Status Cell */
+.credit-status-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 220px;
+}
+
+.credit-amounts-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.debt-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
     border-radius: 6px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
+    font-size: 0.78rem;
+    font-weight: 700;
 }
 
-.btn-edit-cust:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: var(--primary-light);
+.debt-pill.alert {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.debt-pill.clean {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
+}
+
+.limit-sub {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.credit-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.progress-fill.ok {
+    background: #10b981;
+}
+
+.progress-fill.warning {
+    background: #f59e0b;
+}
+
+.progress-fill.danger {
+    background: #ef4444;
+}
+
+.no-credit-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+/* Actions in Table */
+.cust-actions-flex {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+}
+
+.btn-action-pay {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #15803d;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-action-pay:hover {
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+}
+
+.btn-action-history {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-action-history:hover {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.btn-action-edit {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-action-edit:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.cust-empty-state {
+    text-align: center;
+    padding: 3rem 1rem !important;
+    color: var(--gray-400);
 }

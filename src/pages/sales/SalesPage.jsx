@@ -21,7 +21,10 @@ import {
     FaPrint,
     FaUserPlus,
     FaUserCheck,
-    FaCoins
+    FaCoins,
+    FaHandHoldingUsd,
+    FaWifi,
+    FaSync
 } from 'react-icons/fa';
 import { toast, ToastContainer } from 'react-toastify';
 import BarcodeScanner from '../../components/common/BarcodeScanner';
@@ -33,6 +36,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import api from '../../api/client';
 import cashShiftService from '../../api/cashShiftService';
 import customerService from '../../api/customerService';
+import useNetworkStatus from '../../hooks/useNetworkStatus';
+import { cacheProducts, getCachedProducts, queueOfflineSale } from '../../services/offlineStorage';
 import './SalesPage.css';
 
 const formatCOP = (value) => {
@@ -62,9 +67,11 @@ const SalesPage = () => {
     const [splitCard, setSplitCard] = useState('');
     const [splitTransfer, setSplitTransfer] = useState('');
     const [splitOther, setSplitOther] = useState('');
+    const [splitCredit, setSplitCredit] = useState('');
     const [splitCashTendered, setSplitCashTendered] = useState('');
     const [customerId, setCustomerId] = useState(1);
     const [customerName, setCustomerName] = useState('Consumidor Final');
+    const [selectedCustomerObj, setSelectedCustomerObj] = useState(null);
     const [customerDoc, setCustomerDoc] = useState('222222222222');
     const [customerEmail, setCustomerEmail] = useState('facturacion@nexpos.com.co');
     const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -74,6 +81,31 @@ const SalesPage = () => {
     // Modal de Factura / Éxito
     const [completedSale, setCompletedSale] = useState(null);
     const [showThermalReceipt, setShowThermalReceipt] = useState(false);
+
+    const fetchProducts = async () => {
+        try {
+            const res = await api.get('/api/productos');
+            setProducts(res.data);
+            await cacheProducts(res.data);
+        } catch (error) {
+            console.error('Error al cargar productos del servidor:', error);
+            const cached = await getCachedProducts();
+            if (cached && cached.length > 0) {
+                setProducts(cached);
+                toast.info(`Inventario cargado desde memoria local offline (${cached.length} productos).`);
+            } else {
+                toast.error('Error al cargar inventario y sin datos en memoria local');
+            }
+        }
+    };
+
+    const {
+        isOnline,
+        pendingCount,
+        isSyncing,
+        syncPendingSales,
+        refreshPendingCount
+    } = useNetworkStatus(fetchProducts);
 
     useEffect(() => {
         fetchProducts();
@@ -92,16 +124,6 @@ const SalesPage = () => {
     useEffect(() => {
         localStorage.setItem('pos_view_mode', viewMode);
     }, [viewMode]);
-
-    const fetchProducts = async () => {
-        try {
-            const res = await api.get('/api/productos');
-            setProducts(res.data);
-        } catch (error) {
-            console.error('Error al cargar productos:', error);
-            toast.error('Error al cargar inventario');
-        }
-    };
 
     // Extract unique categories for POS quick filtering
     const categories = useMemo(() => {
@@ -223,9 +245,11 @@ const SalesPage = () => {
         setSplitCard('');
         setSplitTransfer('');
         setSplitOther('');
+        setSplitCredit('');
         setSplitCashTendered('');
         setCustomerName('Consumidor Final');
         setCustomerDoc('222222222222');
+        setSelectedCustomerObj(null);
         setShowPaymentModal(true);
     };
 
@@ -237,7 +261,13 @@ const SalesPage = () => {
             setSplitCard('');
             setSplitTransfer('');
             setSplitOther('');
+            setSplitCredit('');
             setSplitCashTendered('');
+        } else if (method === 'CREDITO') {
+            setAmountPaid(total.toString());
+            if (customerId === 1 || customerDoc === '222222222222') {
+                toast.info('Para venta a crédito, busque y seleccione al cliente registrado.');
+            }
         } else {
             setAmountPaid(total.toString());
         }
@@ -249,8 +279,9 @@ const SalesPage = () => {
         const currentCard = targetField === 'card' ? 0 : (Number(splitCard) || 0);
         const currentTransfer = targetField === 'transfer' ? 0 : (Number(splitTransfer) || 0);
         const currentOther = targetField === 'other' ? 0 : (Number(splitOther) || 0);
+        const currentCredit = targetField === 'credit' ? 0 : (Number(splitCredit) || 0);
 
-        const currentOtherSum = currentCash + currentCard + currentTransfer + currentOther;
+        const currentOtherSum = currentCash + currentCard + currentTransfer + currentOther + currentCredit;
         const remaining = Math.max(0, total - currentOtherSum);
 
         if (targetField === 'cash') {
@@ -261,6 +292,8 @@ const SalesPage = () => {
             setSplitTransfer(remaining > 0 ? remaining.toString() : '');
         } else if (targetField === 'other') {
             setSplitOther(remaining > 0 ? remaining.toString() : '');
+        } else if (targetField === 'credit') {
+            setSplitCredit(remaining > 0 ? remaining.toString() : '');
         }
     };
 
@@ -283,6 +316,7 @@ const SalesPage = () => {
         setCustomerDoc(cust.docNumber);
         setCustomerName(cust.name);
         setCustomerEmail(cust.email || 'facturacion@nexpos.com.co');
+        setSelectedCustomerObj(cust);
         setCustomerSuggestions([]);
         setCustomerSearchQuery('');
     };
@@ -292,6 +326,7 @@ const SalesPage = () => {
         setCustomerDoc('222222222222');
         setCustomerName('Consumidor Final');
         setCustomerEmail('facturacion@nexpos.com.co');
+        setSelectedCustomerObj(null);
         setCustomerSuggestions([]);
         setCustomerSearchQuery('');
     };
@@ -312,7 +347,8 @@ const SalesPage = () => {
         const mixedCardPortion = Number(splitCard) || 0;
         const mixedTransferPortion = Number(splitTransfer) || 0;
         const mixedOtherPortion = Number(splitOther) || 0;
-        const mixedTotalCovered = mixedCashPortion + mixedCardPortion + mixedTransferPortion + mixedOtherPortion;
+        const mixedCreditPortion = Number(splitCredit) || 0;
+        const mixedTotalCovered = mixedCashPortion + mixedCardPortion + mixedTransferPortion + mixedOtherPortion + mixedCreditPortion;
         const mixedRemaining = Math.max(0, total - mixedTotalCovered);
         const mixedTendered = Number(splitCashTendered) > 0 ? Number(splitCashTendered) : mixedCashPortion;
 
@@ -327,12 +363,34 @@ const SalesPage = () => {
             }
         }
 
+        // Validación estricta de cupo y crédito
+        const creditAmountToFinance = paymentMethod === 'CREDITO' ? total : mixedCreditPortion;
+        if (creditAmountToFinance > 0) {
+            if (!customerId || customerId === 1 || customerDoc === '222222222222') {
+                toast.error('Para ventas a crédito o fiado, debe buscar y seleccionar un cliente registrado (no Consumidor Final).');
+                return;
+            }
+            if (selectedCustomerObj && !selectedCustomerObj.creditAllowed) {
+                toast.error(`El cliente ${customerName} no tiene cupo de crédito habilitado en el sistema.`);
+                return;
+            }
+            if (selectedCustomerObj) {
+                const limit = Number(selectedCustomerObj.creditLimit) || 0;
+                const debt = Number(selectedCustomerObj.currentDebt) || 0;
+                const available = Math.max(0, limit - debt);
+                if (creditAmountToFinance > available) {
+                    toast.error(`Cupo de crédito insuficiente para ${customerName}. Cupo disponible: ${formatCOP(available)}, requerido: ${formatCOP(creditAmountToFinance)}.`);
+                    return;
+                }
+            }
+        }
+
         setLoading(true);
 
         const paid = Number(amountPaid) || total;
         const totalPaidTendered = paymentMethod === 'MIXTO'
-            ? (mixedCardPortion + mixedTransferPortion + mixedOtherPortion + mixedTendered)
-            : (paymentMethod === 'EFECTIVO' ? paid : total);
+            ? (mixedCardPortion + mixedTransferPortion + mixedOtherPortion + mixedCreditPortion + mixedTendered)
+            : (paymentMethod === 'EFECTIVO' ? paid : (paymentMethod === 'CREDITO' ? 0 : total));
 
         const saleRequest = {
             customerId: customerId || 1,
@@ -345,11 +403,33 @@ const SalesPage = () => {
             cardAmount: paymentMethod === 'MIXTO' ? mixedCardPortion : (paymentMethod === 'TARJETA' ? total : 0),
             transferAmount: paymentMethod === 'MIXTO' ? mixedTransferPortion : (paymentMethod === 'TRANSFERENCIA' ? total : 0),
             otherAmount: paymentMethod === 'MIXTO' ? mixedOtherPortion : 0,
+            creditAmount: paymentMethod === 'MIXTO' ? mixedCreditPortion : (paymentMethod === 'CREDITO' ? total : 0),
             items: cart.map(item => ({
                 productId: item.id,
                 quantity: item.quantity
             }))
         };
+
+        if (!isOnline) {
+            try {
+                const completedOffline = await queueOfflineSale(saleRequest, cart);
+                toast.warn('⚠️ Venta registrada en MODO CONTINGENCIA OFFLINE. Se sincronizará automáticamente al volver la conexión.');
+                setCompletedSale(completedOffline);
+                setShowPaymentModal(false);
+                setCart([]);
+                await refreshPendingCount();
+                setProducts(prev => prev.map(p => {
+                    const item = cart.find(ci => ci.id === p.id);
+                    return item ? { ...p, cantidad: Math.max(0, (p.cantidad || 0) - item.quantity) } : p;
+                }));
+            } catch (err) {
+                console.error('Error guardando en modo contingencia:', err);
+                toast.error('Error al guardar la venta en memoria local offline.');
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
 
         try {
             const res = await api.post('/api/sales', saleRequest);
@@ -364,6 +444,23 @@ const SalesPage = () => {
             await fetchActiveShift();
         } catch (error) {
             console.error('Error al procesar la venta:', error);
+            if (!error.response || error.code === 'ERR_NETWORK') {
+                try {
+                    const completedOffline = await queueOfflineSale(saleRequest, cart);
+                    toast.warn('Fallo de red con el servidor. ¡Venta resguardada localmente en MODO CONTINGENCIA OFFLINE!');
+                    setCompletedSale(completedOffline);
+                    setShowPaymentModal(false);
+                    setCart([]);
+                    await refreshPendingCount();
+                    setProducts(prev => prev.map(p => {
+                        const item = cart.find(ci => ci.id === p.id);
+                        return item ? { ...p, cantidad: Math.max(0, (p.cantidad || 0) - item.quantity) } : p;
+                    }));
+                    return;
+                } catch (offlineErr) {
+                    console.error('Error al respaldar en contingencia offline:', offlineErr);
+                }
+            }
             const msg = error.response?.data?.message || error.message || 'Error al procesar la venta';
             toast.error(msg);
         } finally {
@@ -372,6 +469,10 @@ const SalesPage = () => {
     };
 
     const downloadInvoice = async (saleId) => {
+        if (completedSale?.isOfflineContingency) {
+            toast.info('La factura PDF oficial estará disponible una vez se sincronice con el servidor.');
+            return;
+        }
         try {
             const response = await api.get(`/api/sales/${saleId}/invoice`, { responseType: 'blob' });
             const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -405,7 +506,8 @@ const SalesPage = () => {
     const mixedCardPortion = Number(splitCard) || 0;
     const mixedTransferPortion = Number(splitTransfer) || 0;
     const mixedOtherPortion = Number(splitOther) || 0;
-    const mixedTotalCovered = mixedCashPortion + mixedCardPortion + mixedTransferPortion + mixedOtherPortion;
+    const mixedCreditPortion = Number(splitCredit) || 0;
+    const mixedTotalCovered = mixedCashPortion + mixedCardPortion + mixedTransferPortion + mixedOtherPortion + mixedCreditPortion;
     const mixedRemaining = Math.max(0, total - mixedTotalCovered);
     const mixedTendered = Number(splitCashTendered) > 0 ? Number(splitCashTendered) : mixedCashPortion;
     const mixedChange = Math.max(0, mixedTendered - mixedCashPortion);
@@ -439,6 +541,40 @@ const SalesPage = () => {
                         </button>
                     </div>
                 )}
+
+                {/* Banner de Estado de Red / Modo Contingencia Offline */}
+                <div className={`pos-network-banner ${isOnline ? 'online' : 'offline'}`}>
+                    <div className="network-status-badge">
+                        <span className={`status-dot ${isOnline ? 'dot-green' : 'dot-orange'}`} />
+                        <span>
+                            {isOnline ? (
+                                <>
+                                    <FaWifi style={{ marginRight: '6px' }} /> En Línea (NexPOS Cloud)
+                                </>
+                            ) : (
+                                <>
+                                    ⚠️ <strong>MODO CONTINGENCIA OFFLINE</strong> • Ventas protegidas en memoria local
+                                </>
+                            )}
+                        </span>
+                        {pendingCount > 0 && (
+                            <span className="badge-pending-sales" title="Ventas realizadas offline pendientes de subir al servidor">
+                                {pendingCount} venta{pendingCount > 1 ? 's' : ''} en cola local
+                            </span>
+                        )}
+                    </div>
+                    {pendingCount > 0 && isOnline && (
+                        <button
+                            className="btn-sync-offline"
+                            onClick={syncPendingSales}
+                            disabled={isSyncing}
+                            title="Sincronizar ventas offline pendientes ahora"
+                        >
+                            <FaSync className={isSyncing ? 'icon-spin' : ''} />
+                            <span>{isSyncing ? 'Sincronizando...' : `Sincronizar (${pendingCount})`}</span>
+                        </button>
+                    )}
+                </div>
 
                 {/* Search Bar & Scanner Trigger */}
                 <div className="pos-search-header">
@@ -817,11 +953,25 @@ const SalesPage = () => {
                                 {/* Active Customer Badge */}
                                 <div className="active-customer-badge">
                                     <div className="active-cust-info">
-                                        <span className="active-cust-name">{customerName}</span>
+                                        <div className="active-cust-header-line">
+                                            <span className="active-cust-name">{customerName}</span>
+                                            {selectedCustomerObj?.creditAllowed ? (
+                                                <span className="badge-cust-credit-active">
+                                                    Cupo: {formatCOP(Math.max(0, (Number(selectedCustomerObj.creditLimit) || 0) - (Number(selectedCustomerObj.currentDebt) || 0)))} disp.
+                                                </span>
+                                            ) : (
+                                                selectedCustomerObj && (
+                                                    <span className="badge-cust-credit-inactive">Sin crédito</span>
+                                                )
+                                            )}
+                                        </div>
                                         <div className="active-cust-details">
                                             <span>Doc: {customerDoc}</span>
                                             {customerEmail && (
                                                 <span className="dian-email-tag">• Email DIAN: {customerEmail}</span>
+                                            )}
+                                            {selectedCustomerObj && Number(selectedCustomerObj.currentDebt) > 0 && (
+                                                <span className="dian-debt-tag">• Deuda: {formatCOP(selectedCustomerObj.currentDebt)}</span>
                                             )}
                                         </div>
                                     </div>
@@ -856,6 +1006,14 @@ const SalesPage = () => {
                                     >
                                         <FaMobileAlt />
                                         <span>Transferencia</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`btn-method-choice ${paymentMethod === 'CREDITO' ? 'active' : ''}`}
+                                        onClick={() => handleSelectPaymentMethod('CREDITO')}
+                                    >
+                                        <FaHandHoldingUsd />
+                                        <span>Crédito / Fiado</span>
                                     </button>
                                     <button
                                         type="button"
@@ -912,6 +1070,96 @@ const SalesPage = () => {
                                         <span className="change-label">Cambio / Vuelto al Cliente:</span>
                                         <span className="change-amount-value">{formatCOP(change)}</span>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Crédito / Fiado POS Card */}
+                            {paymentMethod === 'CREDITO' && (
+                                <div className="credit-pos-card">
+                                    <div className="credit-pos-header">
+                                        <div className="credit-pos-title">
+                                            <FaHandHoldingUsd className="credit-icon" />
+                                            <span>Venta a Crédito / Fiado</span>
+                                        </div>
+                                        <span className="badge-credit-pill">Cartera POS</span>
+                                    </div>
+
+                                    {!selectedCustomerObj || selectedCustomerObj.id === 1 || customerDoc === '222222222222' ? (
+                                        <div className="credit-warning-box">
+                                            <p className="warning-text">
+                                                ⚠️ <strong>Cliente Requerido:</strong> No es posible otorgar crédito a &quot;Consumidor Final&quot;.
+                                            </p>
+                                            <p className="warning-sub">
+                                                Seleccione un cliente registrado en el buscador superior o cree uno nuevo con su documento.
+                                            </p>
+                                        </div>
+                                    ) : !selectedCustomerObj.creditAllowed ? (
+                                        <div className="credit-warning-box error">
+                                            <p className="warning-text">
+                                                ❌ <strong>Sin Crédito Habilitado:</strong> {selectedCustomerObj.name} no tiene cupo de crédito activo.
+                                            </p>
+                                            <p className="warning-sub">
+                                                Habilite el crédito en el módulo de Clientes o elija otro medio de pago.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="pos-credit-customer-info">
+                                            {(() => {
+                                                const limit = Number(selectedCustomerObj.creditLimit) || 0;
+                                                const debt = Number(selectedCustomerObj.currentDebt) || 0;
+                                                const available = Math.max(0, limit - debt);
+                                                const isExceeded = total > available;
+                                                const projectedDebt = debt + total;
+                                                const remainingAvail = Math.max(0, available - total);
+
+                                                return (
+                                                    <>
+                                                        <div className="credit-kpi-grid">
+                                                            <div className="credit-kpi-item">
+                                                                <span className="lbl">Cupo Total:</span>
+                                                                <strong className="val">{formatCOP(limit)}</strong>
+                                                            </div>
+                                                            <div className="credit-kpi-item">
+                                                                <span className="lbl">Deuda Actual:</span>
+                                                                <strong className="val debt">{formatCOP(debt)}</strong>
+                                                            </div>
+                                                            <div className="credit-kpi-item">
+                                                                <span className="lbl">Disponible:</span>
+                                                                <strong className={`val ${isExceeded ? 'negative' : 'avail'}`}>
+                                                                    {formatCOP(available)}
+                                                                </strong>
+                                                            </div>
+                                                        </div>
+
+                                                        {isExceeded ? (
+                                                            <div className="credit-warning-box error">
+                                                                <p className="warning-text">
+                                                                    ⛔ <strong>Cupo Insuficiente:</strong> La venta ({formatCOP(total)}) supera el cupo disponible ({formatCOP(available)}).
+                                                                </p>
+                                                                <p className="warning-sub">
+                                                                    Excedido por {formatCOP(total - available)}. Realice un abono previo o use Pago Mixto.
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="credit-projection-box">
+                                                                <div className="proj-line">
+                                                                    <span>Nueva Deuda Tras Venta:</span>
+                                                                    <strong>{formatCOP(projectedDebt)}</strong>
+                                                                </div>
+                                                                <div className="proj-line">
+                                                                    <span>Cupo Restante Posterior:</span>
+                                                                    <strong className="text-success">{formatCOP(remainingAvail)}</strong>
+                                                                </div>
+                                                                <div className="credit-safe-alert">
+                                                                    ✓ Operación aprobada. La deuda se cargará a la cuenta de {selectedCustomerObj.name}.
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -983,7 +1231,7 @@ const SalesPage = () => {
                                     <div className="split-input-row">
                                         <div className="split-input-label">
                                             <FaMoneyBillWave className="split-icon cash" />
-                                            <span>Efectivo a abonar:</span>
+                                            <span>Efectivo:</span>
                                         </div>
                                         <div className="split-input-control">
                                             <input
@@ -1006,7 +1254,54 @@ const SalesPage = () => {
                                         </div>
                                     </div>
 
-                                    {/* 4. Billete recibido en efectivo si el cliente requiere cambio */}
+                                    {/* 4. Crédito / Fiado */}
+                                    <div className="split-input-row">
+                                        <div className="split-input-label">
+                                            <FaHandHoldingUsd className="split-icon credit" />
+                                            <span>Crédito / Fiado:</span>
+                                        </div>
+                                        <div className="split-input-control">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="500"
+                                                placeholder="$0"
+                                                value={splitCredit}
+                                                onChange={e => setSplitCredit(e.target.value)}
+                                                className="split-num-input"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn-split-shortcut"
+                                                onClick={() => handleAllocateRemaining('credit')}
+                                                title="Asignar el saldo restante a Crédito"
+                                            >
+                                                Restante
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {mixedCreditPortion > 0 && (
+                                        <div className="split-credit-helper-note">
+                                            {(!selectedCustomerObj || selectedCustomerObj.id === 1 || customerDoc === '222222222222') ? (
+                                                <span className="text-danger">⚠️ Debe seleccionar un cliente registrado para la porción a crédito.</span>
+                                            ) : !selectedCustomerObj.creditAllowed ? (
+                                                <span className="text-danger">❌ {selectedCustomerObj.name} no tiene crédito activo.</span>
+                                            ) : (
+                                                (() => {
+                                                    const limit = Number(selectedCustomerObj.creditLimit) || 0;
+                                                    const debt = Number(selectedCustomerObj.currentDebt) || 0;
+                                                    const avail = Math.max(0, limit - debt);
+                                                    return mixedCreditPortion > avail ? (
+                                                        <span className="text-danger">⛔ Supera cupo disponible ({formatCOP(avail)}).</span>
+                                                    ) : (
+                                                        <span className="text-success">✓ Cupo disp.: {formatCOP(avail)} (Quedará en {formatCOP(avail - mixedCreditPortion)})</span>
+                                                    );
+                                                })()
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Billete recibido en efectivo si el cliente requiere cambio */}
                                     {mixedCashPortion > 0 && (
                                         <div className="split-tendered-row">
                                             <div className="split-input-label sub">
@@ -1075,7 +1370,23 @@ const SalesPage = () => {
                                     disabled={
                                         loading ||
                                         (paymentMethod === 'EFECTIVO' && paidNumber < total) ||
-                                        (paymentMethod === 'MIXTO' && mixedTotalCovered < total)
+                                        (paymentMethod === 'MIXTO' && (
+                                            mixedTotalCovered < total ||
+                                            (mixedCreditPortion > 0 && (
+                                                !selectedCustomerObj ||
+                                                selectedCustomerObj.id === 1 ||
+                                                customerDoc === '222222222222' ||
+                                                !selectedCustomerObj.creditAllowed ||
+                                                mixedCreditPortion > Math.max(0, (Number(selectedCustomerObj.creditLimit) || 0) - (Number(selectedCustomerObj.currentDebt) || 0))
+                                            ))
+                                        )) ||
+                                        (paymentMethod === 'CREDITO' && (
+                                            !selectedCustomerObj ||
+                                            selectedCustomerObj.id === 1 ||
+                                            customerDoc === '222222222222' ||
+                                            !selectedCustomerObj.creditAllowed ||
+                                            total > Math.max(0, (Number(selectedCustomerObj.creditLimit) || 0) - (Number(selectedCustomerObj.currentDebt) || 0))
+                                        ))
                                     }
                                 >
                                     {loading ? 'Procesando Venta...' : `Confirmar Cobro • ${formatCOP(total)}`}
@@ -1093,8 +1404,12 @@ const SalesPage = () => {
                         <div className="success-icon-wrapper">
                             <FaCheckCircle className="success-check-icon" />
                         </div>
-                        <h3>¡Venta Completada con Éxito!</h3>
-                        <p className="success-invoice-id">Factura Oficial No. #{completedSale.id}</p>
+                        <h3>{completedSale.isOfflineContingency ? '¡Venta en Contingencia Offline!' : '¡Venta Completada con Éxito!'}</h3>
+                        <p className="success-invoice-id">
+                            {completedSale.isOfflineContingency
+                                ? `Ref. Local: ${completedSale.offlineReference} (Pendiente de Sincronizar)`
+                                : `Factura Oficial No. #${completedSale.id}`}
+                        </p>
 
                         <div className="success-ticket-card">
                             <div className="ticket-line">
@@ -1107,7 +1422,7 @@ const SalesPage = () => {
                             </div>
                             <div className="ticket-line">
                                 <span>Medio de Pago:</span>
-                                <strong>{completedSale.paymentMethod === 'MIXTO' ? 'PAGO MIXTO' : completedSale.paymentMethod}</strong>
+                                <strong>{completedSale.paymentMethod === 'MIXTO' ? 'PAGO MIXTO' : (completedSale.paymentMethod === 'CREDITO' ? 'CRÉDITO / FIADO' : completedSale.paymentMethod)}</strong>
                             </div>
 
                             {/* Desglose si fue Pago Mixto */}
@@ -1131,6 +1446,26 @@ const SalesPage = () => {
                                             <span>{formatCOP(completedSale.transferAmount)}</span>
                                         </div>
                                     )}
+                                    {Number(completedSale.creditAmount) > 0 && (
+                                        <div className="ticket-line sub">
+                                            <span>• Crédito / Fiado:</span>
+                                            <span style={{ color: '#d97706', fontWeight: 600 }}>{formatCOP(completedSale.creditAmount)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Desglose si fue Crédito Directo */}
+                            {completedSale.paymentMethod === 'CREDITO' && (
+                                <div className="ticket-split-recap">
+                                    <div className="ticket-line sub">
+                                        <span>• Monto Financiado:</span>
+                                        <span style={{ color: '#d97706', fontWeight: 600 }}>{formatCOP(completedSale.creditAmount || completedSale.totalAmount)}</span>
+                                    </div>
+                                    <div className="ticket-line sub">
+                                        <span>• Estado Cartera:</span>
+                                        <span style={{ color: '#d97706', fontWeight: 600 }}>PENDIENTE DE COBRO</span>
+                                    </div>
                                 </div>
                             )}
 
@@ -1153,11 +1488,14 @@ const SalesPage = () => {
                                 title="Imprimir tiquete de caja para impresora térmica (58mm/80mm)"
                             >
                                 <FaPrint />
-                                <span>Tiquete POS</span>
+                                <span>{completedSale.isOfflineContingency ? 'Tiquete Contingencia' : 'Tiquete POS'}</span>
                             </button>
                             <button
                                 className="btn-download-pdf"
                                 onClick={() => downloadInvoice(completedSale.id)}
+                                disabled={completedSale.isOfflineContingency}
+                                style={completedSale.isOfflineContingency ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                title={completedSale.isOfflineContingency ? 'Factura PDF oficial disponible tras sincronizar con el servidor' : 'Descargar factura PDF'}
                             >
                                 <FaFilePdf />
                                 <span>Factura PDF</span>

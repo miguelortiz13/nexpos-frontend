@@ -10,7 +10,9 @@ import {
   FaShieldAlt,
   FaBarcode,
   FaMoneyBillWave,
-  FaAddressCard
+  FaAddressCard,
+  FaTruck,
+  FaRobot
 } from "react-icons/fa";
 import { useAuth } from "../../context/AuthContext";
 import "./HomePage.css";
@@ -82,15 +84,15 @@ function HomePage() {
               </div>
             </Link>
 
-            {/* Customers & DIAN */}
+            {/* Customers & Credit / Cartera */}
             <Link to="/customers" className="shortcut-card">
               <div className="shortcut-icon-box customer-icon-box">
                 <FaAddressCard />
               </div>
               <div className="shortcut-content">
-                <div className="shortcut-tag">FACTURACIÓN ELECTRÓNICA</div>
-                <h3>Directorio de Clientes</h3>
-                <p>Gestión de adquirentes (Cédula, NIT) para facturación electrónica DIAN.</p>
+                <div className="shortcut-tag">DIAN Y CARTERA</div>
+                <h3>Clientes & Cartera</h3>
+                <p>Gestión de adquirentes DIAN, cupos de crédito, cobros y recibos de caja.</p>
               </div>
               <div className="shortcut-arrow">
                 <FaArrowRight />
@@ -110,6 +112,34 @@ function HomePage() {
                     <p>Alta de productos, actualización de precios y alertas de agotados.</p>
                   </div>
                   <div className="shortcut-arrow">
+                    <FaArrowRight />
+                  </div>
+                </Link>
+
+                <Link to="/purchases" className="shortcut-card">
+                  <div className="shortcut-icon-box">
+                    <FaTruck />
+                  </div>
+                  <div className="shortcut-content">
+                    <div className="shortcut-tag">CADENA DE SUMINISTRO</div>
+                    <h3>Compras & Proveedores</h3>
+                    <p>Recepción de facturas de distribuidores, actualización de stock y costo promedio ponderado.</p>
+                  </div>
+                  <div className="shortcut-arrow">
+                    <FaArrowRight />
+                  </div>
+                </Link>
+
+                <Link to="/purchases?tab=FORECASTING" className="shortcut-card" style={{ borderColor: 'rgba(99, 102, 241, 0.3)', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(168, 85, 247, 0.04))' }}>
+                  <div className="shortcut-icon-box" style={{ background: '#e0e7ff', color: '#4f46e5' }}>
+                    <FaRobot />
+                  </div>
+                  <div className="shortcut-content">
+                    <div className="shortcut-tag" style={{ color: '#4f46e5', fontWeight: 700 }}>PILAR E • INTELIGENCIA ARTIFICIAL</div>
+                    <h3>Pronóstico & Reabastecimiento IA</h3>
+                    <p>Predicción de agotamiento de stock, rotación diaria y pedidos automáticos por WhatsApp.</p>
+                  </div>
+                  <div className="shortcut-arrow" style={{ color: '#4f46e5' }}>
                     <FaArrowRight />
                   </div>
                 </Link>

@@ -319,7 +319,13 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                             <div>Resolución DIAN No. {config.dianResolutionNumber}</div>
                             <div>Vigencia: {config.dianStartDate} al {config.dianEndDate}</div>
                             <div>Prefijo {config.dianPrefix} del {config.dianRangeFrom} al {config.dianRangeTo}</div>
-                            <div className="doc-type-badge">DOCUMENTO EQUIVALENTE ELECTRÓNICO POS</div>
+                            {sale.isOfflineContingency ? (
+                                <div className="doc-type-badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px dashed #d97706', fontWeight: 'bold' }}>
+                                    TIQUETE CONTINGENCIA OFFLINE • PENDIENTE DE SINCRONIZACIÓN
+                                </div>
+                            ) : (
+                                <div className="doc-type-badge">DOCUMENTO EQUIVALENTE ELECTRÓNICO POS</div>
+                            )}
                         </div>
 
                         <div className="ticket-divider-line"></div>
@@ -439,6 +445,23 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                                 </>
                             )}
 
+                            {sale.paymentMethod === 'CREDITO' && (
+                                <>
+                                    <div className="t-row bold" style={{ fontSize: '10px', marginTop: '4px', textTransform: 'uppercase' }}>
+                                        <span>ESTADO DE PAGO:</span>
+                                        <span>CRÉDITO / FIADO</span>
+                                    </div>
+                                    <div className="t-row sub-tax">
+                                        <span>• Financiado en Cartera:</span>
+                                        <span>{formatCOP(sale.creditAmount || totalAmount)}</span>
+                                    </div>
+                                    <div className="t-row sub-tax">
+                                        <span>• Estado Cartera:</span>
+                                        <span>PENDIENTE DE PAGO</span>
+                                    </div>
+                                </>
+                            )}
+
                             {sale.paymentMethod === 'MIXTO' && (
                                 <>
                                     <div className="t-row bold" style={{ fontSize: '10px', marginTop: '4px', textTransform: 'uppercase' }}>
@@ -460,6 +483,12 @@ const ThermalReceiptModal = ({ sale, isOpen, onClose, autoPrint = false }) => {
                                         <div className="t-row sub-tax">
                                             <span>• Transferencia / QR:</span>
                                             <span>{formatCOP(sale.transferAmount)}</span>
+                                        </div>
+                                    )}
+                                    {Number(sale.creditAmount) > 0 && (
+                                        <div className="t-row sub-tax">
+                                            <span>• Crédito / Fiado:</span>
+                                            <span>{formatCOP(sale.creditAmount)}</span>
                                         </div>
                                     )}
                                     {Number(sale.otherAmount) > 0 && (

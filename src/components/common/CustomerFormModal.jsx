@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FaUserPlus, FaTimes, FaSave } from 'react-icons/fa';
+import { FaUserPlus, FaUserEdit, FaTimes, FaSave, FaCreditCard, FaCoins } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import customerService from '../../api/customerService';
 import './CustomerFormModal.css';
@@ -13,21 +13,50 @@ const DEFAULT_CUSTOMER = {
     address: '',
     city: 'Cali',
     department: 'Valle del Cauca',
-    notes: ''
+    notes: '',
+    creditAllowed: false,
+    creditLimit: '0'
 };
 
-const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber = '' }) => {
+const formatCOP = (val) => {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        maximumFractionDigits: 0
+    }).format(val || 0);
+};
+
+const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber = '', customerToEdit = null }) => {
     const [formData, setFormData] = useState(DEFAULT_CUSTOMER);
     const [saving, setSaving] = useState(false);
 
+    const isEditing = Boolean(customerToEdit && customerToEdit.id);
+
     useEffect(() => {
         if (isOpen) {
-            setFormData({
-                ...DEFAULT_CUSTOMER,
-                docNumber: initialDocNumber || ''
-            });
+            if (customerToEdit) {
+                setFormData({
+                    docType: customerToEdit.docType || 'CC',
+                    docNumber: customerToEdit.docNumber || '',
+                    name: customerToEdit.name || '',
+                    email: customerToEdit.email || '',
+                    phone: customerToEdit.phone || '',
+                    address: customerToEdit.address || '',
+                    city: customerToEdit.city || 'Cali',
+                    department: customerToEdit.department || 'Valle del Cauca',
+                    notes: customerToEdit.notes || '',
+                    creditAllowed: Boolean(customerToEdit.creditAllowed),
+                    creditLimit: (customerToEdit.creditLimit != null ? customerToEdit.creditLimit : 0).toString(),
+                    currentDebt: customerToEdit.currentDebt || 0
+                });
+            } else {
+                setFormData({
+                    ...DEFAULT_CUSTOMER,
+                    docNumber: initialDocNumber || ''
+                });
+            }
         }
-    }, [isOpen, initialDocNumber]);
+    }, [isOpen, initialDocNumber, customerToEdit]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -40,10 +69,22 @@ const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber 
             return;
         }
 
+        const payload = {
+            ...formData,
+            creditLimit: Number(formData.creditLimit) || 0
+        };
+
         setSaving(true);
         try {
-            const saved = await customerService.create(formData);
-            toast.success(`Cliente ${saved.name} registrado con éxito`);
+            let saved;
+            if (isEditing) {
+                saved = await customerService.update(customerToEdit.id, payload);
+                toast.success(`Cliente ${saved.name} actualizado con éxito`);
+            } else {
+                saved = await customerService.create(payload);
+                toast.success(`Cliente ${saved.name} registrado con éxito`);
+            }
+
             if (onCustomerSaved) {
                 onCustomerSaved(saved);
             }
@@ -64,11 +105,11 @@ const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber 
                 <div className="customer-modal-header">
                     <div className="customer-header-title">
                         <div className="customer-icon-pill">
-                            <FaUserPlus />
+                            {isEditing ? <FaUserEdit /> : <FaUserPlus />}
                         </div>
                         <div>
-                            <h3>Registrar Cliente</h3>
-                            <p>Emisión nominal y envío de factura electrónica DIAN</p>
+                            <h3>{isEditing ? 'Editar Cliente' : 'Registrar Cliente'}</h3>
+                            <p>Facturación electrónica DIAN y cupo de crédito / fiado POS</p>
                         </div>
                     </div>
                     <button className="btn-close-customer" onClick={onClose} title="Cerrar">
@@ -101,7 +142,7 @@ const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber 
                                     onChange={e => handleInputChange('docNumber', e.target.value)}
                                     placeholder="Ej: 1144123456"
                                     required
-                                    autoFocus
+                                    autoFocus={!isEditing}
                                 />
                             </div>
 
@@ -156,6 +197,61 @@ const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber 
                                     placeholder="Ej: Calle 5 # 38-25"
                                 />
                             </div>
+
+                            {/* Sección de Crédito / Fiado y Cartera */}
+                            <div className="cust-credit-section full-width">
+                                <div className="credit-toggle-row">
+                                    <label className="credit-checkbox-label">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.creditAllowed}
+                                            onChange={e => handleInputChange('creditAllowed', e.target.checked)}
+                                        />
+                                        <span className="credit-checkbox-text">
+                                            <FaCreditCard className="credit-icon" />
+                                            <strong>Habilitar Crédito / Fiado para este cliente</strong>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                {formData.creditAllowed && (
+                                    <div className="credit-params-card">
+                                        <div className="cust-form-group">
+                                            <label>Cupo / Límite de Crédito Aprobado ($ COP)</label>
+                                            <div className="credit-input-wrapper">
+                                                <span className="currency-prefix">$</span>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="5000"
+                                                    value={formData.creditLimit}
+                                                    onChange={e => handleInputChange('creditLimit', e.target.value)}
+                                                    placeholder="Ej: 500000"
+                                                    required={formData.creditAllowed}
+                                                />
+                                            </div>
+                                            <span className="cust-field-hint">
+                                                Monto máximo que el cliente puede financiar simultáneamente en el POS.
+                                            </span>
+                                        </div>
+
+                                        {isEditing && (
+                                            <div className="credit-balance-pill">
+                                                <div className="balance-item">
+                                                    <span className="balance-lbl">Deuda Actual:</span>
+                                                    <span className="balance-val debt">{formatCOP(formData.currentDebt || 0)}</span>
+                                                </div>
+                                                <div className="balance-item">
+                                                    <span className="balance-lbl">Cupo Disponible:</span>
+                                                    <span className="balance-val available">
+                                                        {formatCOP(Math.max(0, (Number(formData.creditLimit) || 0) - (formData.currentDebt || 0)))}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -173,7 +269,7 @@ const CustomerFormModal = ({ isOpen, onClose, onCustomerSaved, initialDocNumber 
                             className="btn-cust-submit"
                             disabled={saving}
                         >
-                            <FaSave /> {saving ? 'Guardando...' : 'Registrar Cliente'}
+                            <FaSave /> {saving ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Registrar Cliente')}
                         </button>
                     </div>
                 </form>
