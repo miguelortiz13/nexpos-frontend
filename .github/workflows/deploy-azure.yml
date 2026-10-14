@@ -1,0 +1,70 @@
+name: Deploy Azure Static Web App
+
+# Publica el frontend en Azure Static Web Apps (Free). Entra a Azure con OIDC
+# y obtiene el token de despliegue en el momento: no hay secretos guardados.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-azure
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: ${{ vars.NEXPOS_API_URL }}
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Obtener token de despliegue
+        id: swa
+        run: |
+          token=$(az staticwebapp secrets list \
+            --name "${{ vars.NEXPOS_SWA_NAME }}" \
+            --resource-group "${{ vars.NEXPOS_RESOURCE_GROUP }}" \
+            --query properties.apiKey -o tsv)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa.outputs.token }}
+          action: upload
+          app_location: dist
+          skip_app_build: true
+          skip_api_build: true
+
+      - name: Verificar
+        run: |
+          host=$(az staticwebapp show -n "${{ vars.NEXPOS_SWA_NAME }}" -g "${{ vars.NEXPOS_RESOURCE_GROUP }}" --query defaultHostname -o tsv)
+          for path in / /login /productos; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$host$path")
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::error::$path devolvió $code"; exit 1; }
+          done
