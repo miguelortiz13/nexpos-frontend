@@ -128,7 +128,9 @@ const Login = () => {
                         </button>
                     </form>
 
-                    {/* Quick credential hints for easy testing */}
+                    {/* Quick credential hints for easy testing (solo en desarrollo:
+                        en Azure la clave de admin está en Key Vault) */}
+                    {import.meta.env.DEV && (
                     <div className="demo-credentials-box">
                         <span className="demo-title">Accesos Rápidos de Prueba:</span>
                         <div className="demo-buttons">
@@ -141,6 +143,7 @@ const Login = () => {
                             </button>
                         </div>
                     </div>
+                    )}
 
                     <div className="login-footer">
                         <FaShieldAlt className="shield-icon" />
