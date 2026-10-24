@@ -1,7 +1,7 @@
 name: Deploy Azure Static Web App
 
 # Publica el frontend en Azure Static Web Apps (Free) con el workflow estándar
-# de miguelortiz13/ci-workflows: OIDC y token de despliegue pedido en el momento.
+# de miguelortiz13/github-workflows: OIDC y token de despliegue pedido en el momento.
 on:
   push:
     branches: [main]
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   deploy:
-    uses: miguelortiz13/ci-workflows/.github/workflows/deploy-static-web-app.yml@v0.1.2
+    uses: miguelortiz13/github-workflows/.github/workflows/deploy-azure-static-web-app.yml@v0.2.0
     permissions:
       contents: read
       id-token: write

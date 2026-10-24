@@ -6,57 +6,46 @@ on:
   pull_request:
     branches: [ main ]
 
-# Imagen y seguridad con los workflows estándar de miguelortiz13/ci-workflows.
+# Pipeline armado con los workflows estándar de miguelortiz13/github-workflows.
 permissions:
   contents: read
 
 jobs:
   security-scan:
     name: Security baseline
-    uses: miguelortiz13/ci-workflows/.github/workflows/security-baseline.yml@v0.1.2
+    uses: miguelortiz13/github-workflows/.github/workflows/security-baseline.yml@v0.2.0
     permissions:
       contents: read
       pull-requests: write
 
   lint-and-build:
     name: Lint & Production Build
-    runs-on: ubuntu-latest
     needs: security-scan
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Code Quality & ESLint Check
-        run: npm run lint
-
-      - name: Build Production Bundle (Vite)
-        run: npm run build
-
-      - name: Upload Production Dist Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: dist/
-          retention-days: 7
+    uses: miguelortiz13/github-workflows/.github/workflows/build-node.yml@v0.2.0
+    with:
+      node-version: "22"
+      scripts: lint build
+      artifact-path: dist
 
   docker-publish:
-    name: Imagen (Trivy, GHCR, SBOM y Cosign)
+    name: Imagen (build, Trivy y GHCR)
     needs: lint-and-build
-    uses: miguelortiz13/ci-workflows/.github/workflows/container-image.yml@v0.1.2
+    uses: miguelortiz13/github-workflows/.github/workflows/container-build.yml@v0.2.0
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image-name: nexpos-frontend
+      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+  sign:
+    name: Firma y SBOM (Cosign)
+    needs: docker-publish
+    if: needs.docker-publish.outputs.ref != ''
+    uses: miguelortiz13/github-workflows/.github/workflows/container-sign.yml@v0.2.0
     permissions:
       contents: read
       packages: write
       id-token: write
     with:
-      image-name: nexpos-frontend
-      push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      image-ref: ${{ needs.docker-publish.outputs.ref }}
