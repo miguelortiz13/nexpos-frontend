@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   deploy:
-    uses: miguelortiz13/ci-workflows/.github/workflows/deploy-static-web-app.yml@v0.1.0
+    uses: miguelortiz13/ci-workflows/.github/workflows/deploy-static-web-app.yml@v0.1.1
     permissions:
       contents: read
       id-token: write

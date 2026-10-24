@@ -13,7 +13,7 @@ permissions:
 jobs:
   security-scan:
     name: Security baseline
-    uses: miguelortiz13/ci-workflows/.github/workflows/security-baseline.yml@v0.1.0
+    uses: miguelortiz13/ci-workflows/.github/workflows/security-baseline.yml@v0.1.1
     permissions:
       contents: read
       pull-requests: write
@@ -52,7 +52,7 @@ jobs:
   docker-publish:
     name: Imagen (Trivy, GHCR, SBOM y Cosign)
     needs: lint-and-build
-    uses: miguelortiz13/ci-workflows/.github/workflows/container-image.yml@v0.1.0
+    uses: miguelortiz13/ci-workflows/.github/workflows/container-image.yml@v0.1.1
     permissions:
       contents: read
       packages: write
