@@ -11,6 +11,7 @@ const ProductoCRUD = lazy(() => import("./pages/productos/ProductoCRUD"));
 const SalesPage = lazy(() => import("./pages/sales/SalesPage"));
 const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
 const UsersPage = lazy(() => import("./pages/users/UsersPage"));
+const LossPreventionPage = lazy(() => import("./pages/inventory/LossPreventionPage"));
 const CashShiftPage = lazy(() => import("./pages/cash/CashShiftPage"));
 const CustomersPage = lazy(() => import("./pages/customers/CustomersPage"));
 const PurchasesPage = lazy(() => import("./pages/purchases/PurchasesPage"));
@@ -95,6 +96,14 @@ function App() {
                     element={
                       <ProtectedRoute requiredRole="ADMIN">
                         <ProductoCRUD />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/auditoria"
+                    element={
+                      <ProtectedRoute requiredRole="ADMIN">
+                        <LossPreventionPage />
                       </ProtectedRoute>
                     }
                   />
