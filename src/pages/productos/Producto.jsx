@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FaSearch, FaBarcode, FaBox, FaTags, FaInfoCircle, FaFilter } from "react-icons/fa";
-import api from "../../api/client";
+import productService from "../../api/productService";
 
 function Producto() {
   const [productos, setProductos] = useState([]);
@@ -13,9 +13,8 @@ function Producto() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/api/productos")
-      .then((res) => {
-        const data = res.data || [];
+    productService.getAll()
+      .then((data) => {
         setProductos(data);
         setFilteredProducts(data);
         const uniqueCategories = [...new Set(data.map(p => p.categoria).filter(Boolean))];
