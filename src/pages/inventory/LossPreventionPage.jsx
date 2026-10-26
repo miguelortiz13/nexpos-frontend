@@ -98,7 +98,7 @@ export default function LossPreventionPage() {
       setWastes(list);
       setWasteSummary(summary);
     } catch (err) {
-      toast.error('Error al cargar historial de mermas');
+      toast.error(err.response?.data?.message || 'Error al cargar historial de mermas');
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ export default function LossPreventionPage() {
       const list = await wasteAuditService.getExpiringBatches(60);
       setBatches(list);
     } catch (err) {
-      toast.error('Error al cargar lotes y caducidades');
+      toast.error(err.response?.data?.message || 'Error al cargar lotes y caducidades');
     } finally {
       setLoading(false);
     }
@@ -129,7 +129,7 @@ export default function LossPreventionPage() {
         setActiveAudit(null);
       }
     } catch (err) {
-      toast.error('Error al cargar sesiones de auditoría');
+      toast.error(err.response?.data?.message || 'Error al cargar sesiones de auditoría');
     } finally {
       setLoading(false);
     }
@@ -256,7 +256,7 @@ export default function LossPreventionPage() {
       toast.info('Sesión cancelada');
       loadAudits();
     } catch (err) {
-      toast.error('Error al cancelar la sesión');
+      toast.error(err.response?.data?.message || 'Error al cancelar la sesión');
     }
   };
 
@@ -293,6 +293,13 @@ export default function LossPreventionPage() {
           <FaClipboardCheck /> Conteo Físico & Auditoría
         </button>
       </nav>
+
+      {/* Loading Indicator */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '0.75rem', color: '#059669', fontWeight: 600 }}>
+          Cargando datos de inventario...
+        </div>
+      )}
 
       {/* TAB 1: MERMAS */}
       {activeTab === 'wastes' && (
